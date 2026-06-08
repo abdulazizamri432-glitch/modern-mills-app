@@ -6,16 +6,16 @@ import random
 from datetime import datetime
 
 # ==========================================
-# 1. System Configuration
+# 1. System Configuration & CSS
 # ==========================================
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="🏭", layout="wide")
 
-# Minimal & Clean CSS for buttons only
 st.markdown("""
 <style>
     .stButton>button { border-radius: 6px; font-weight: bold; width: 100%; }
     .main-header { text-align: center; color: #2C3E50; margin-bottom: 5px; }
     .sub-header { text-align: center; color: #7F8C8D; margin-bottom: 40px; }
+    .warning-box { background-color: #FDEDEC; padding: 15px; border-left: 5px solid #E74C3C; border-radius: 5px; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -23,7 +23,6 @@ st.markdown("""
 # 2. Telegram & Settings
 # ==========================================
 BOT_TOKEN = "8912670603:AAEr-hufquf8PIxnv-aKv0fz-9WgZa0oRks"
-# The exact Chat IDs you provided:
 BRANCH_CHATS = {
     "Al-Jumum": "-5159290787", 
     "Al-Jouf": "-5176017884", 
@@ -72,7 +71,7 @@ if 'welcome_screen' not in st.session_state: st.session_state.welcome_screen = T
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
 # ==========================================
-# 5. Welcome Screen
+# 5. Welcome & Login Screens
 # ==========================================
 if st.session_state.welcome_screen:
     st.markdown("<h1 class='main-header'>🏭 MMC Smart Maintenance</h1>", unsafe_allow_html=True)
@@ -82,12 +81,8 @@ if st.session_state.welcome_screen:
     with col2:
         st.info("Welcome to the centralized maintenance hub. Please proceed to authenticate.")
         if st.button("Access Portal 🔐", type="primary"):
-            st.session_state.welcome_screen = False
-            st.rerun()
+            st.session_state.welcome_screen = False; st.rerun()
 
-# ==========================================
-# 6. Login Screen (Centered & Clean)
-# ==========================================
 elif not st.session_state.logged_in:
     st.markdown("<h2 class='main-header'>System Authentication</h2><br>", unsafe_allow_html=True)
     
@@ -114,7 +109,7 @@ elif not st.session_state.logged_in:
                     st.rerun()
 
 # ==========================================
-# 7. Main Dashboard
+# 6. Main Dashboard
 # ==========================================
 else:
     st.sidebar.markdown(f"## 👤 {st.session_state.name}")
@@ -162,10 +157,8 @@ else:
                     new_t = pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Dept": st.session_state.dept, "Type": short_type, "Device": device, "Location": loc, "Tech_Name": st.session_state.name, "Points": pts, "Status": "Completed"}])
                     pd.concat([df_tickets, new_t]).to_csv("tickets_db.csv", index=False)
                     send_telegram(f"✅ Task Completed ({short_type})\nTech: {st.session_state.name}\nDevice: {device}\nPoints Earned: +{pts}", st.session_state.branch)
-                    
                     st.balloons()
-                    motivational_quote = random.choice(MOTIVATIONS)
-                    st.success(f"**Task Submitted Successfully! (+{pts} Pts)**\n\n💬 *{motivational_quote}*")
+                    st.success(f"**Task Submitted Successfully! (+{pts} Pts)**\n\n💬 *{random.choice(MOTIVATIONS)}*")
 
         with t2:
             st.subheader("Roll Lifecycle Management")
@@ -181,13 +174,11 @@ else:
                     
                     if st.button("Confirm Installation ⚙️", type="primary"):
                         pd.concat([df_rolls, pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Roll_Type": r_type, "Status": "Installed", "Device": r_device, "Start_Time": str(r_start), "End_Time": str(r_end)}])]).to_csv("rolls_db.csv", index=False)
-                        
                         df_ready = pd.read_csv("rolls_db.csv")
                         idx_drop = df_ready[(df_ready['Branch'] == st.session_state.branch) & (df_ready['Status'] == "Ready") & (df_ready['Roll_Type'] == r_type)].index
                         if not idx_drop.empty:
                             df_ready = df_ready.drop(idx_drop[0])
                             df_ready.to_csv("rolls_db.csv", index=False)
-                            
                         send_telegram(f"⚙️ Roll Installed\nType: {r_type}\nDevice: {r_device}\nTech: {st.session_state.name}", st.session_state.branch)
                         st.success("Roll installation logged perfectly. Inventory updated!")
             else:
@@ -196,47 +187,85 @@ else:
                     if st.button("➕ Add to Ready Stock"):
                         pd.concat([df_rolls, pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Roll_Type": new_ready, "Status": "Ready", "Device": "N/A", "Start_Time": "N/A", "End_Time": "N/A"}])]).to_csv("rolls_db.csv", index=False)
                         st.rerun()
-                    st.write("**Current Ready Inventory**")
                     st.dataframe(df_rolls[(df_rolls['Branch'] == st.session_state.branch) & (df_rolls['Status'] == 'Ready')][['Date', 'Roll_Type']], use_container_width=True)
 
         with t3:
             st.subheader("Wall of Fame 🏆")
             leaderboard = df_tickets.groupby(['Branch', 'Dept', 'Tech_Name'])['Points'].sum().reset_index()
-            
             c_local, c_global = st.columns(2)
             with c_local:
                 st.write(f"**🏢 Top in {st.session_state.branch}**")
                 branch_lb = leaderboard[leaderboard['Branch'] == st.session_state.branch].sort_values(by='Points', ascending=False)
                 for dpt in DEPARTMENTS:
                     dept_top = branch_lb[branch_lb['Dept'] == dpt]
-                    if not dept_top.empty:
-                        st.info(f"**{dpt}:** {dept_top.iloc[0]['Tech_Name']} ({dept_top.iloc[0]['Points']} pts)")
-            
+                    if not dept_top.empty: st.info(f"**{dpt}:** {dept_top.iloc[0]['Tech_Name']} ({dept_top.iloc[0]['Points']} pts)")
             with c_global:
                 st.write("**🌍 Top 3 Company-Wide**")
                 global_lb = df_tickets.groupby('Tech_Name')['Points'].sum().reset_index().sort_values(by='Points', ascending=False).head(3)
                 medals = ["🥇", "🥈", "🥉"]
-                for i, row in global_lb.reset_index(drop=True).iterrows():
-                    st.success(f"{medals[i]} {row['Tech_Name']} - {row['Points']} pts")
+                for i, row in global_lb.reset_index(drop=True).iterrows(): st.success(f"{medals[i]} {row['Tech_Name']} - {row['Points']} pts")
 
     # ------------------------------------------
-    # MANAGER DASHBOARD
+    # MANAGER DASHBOARD (Upgraded Intelligence)
     # ------------------------------------------
     elif "Manager" in st.session_state.role:
         st.subheader(f"📊 Command Center - {st.session_state.branch}")
         
-        t1, t2 = st.tabs(["📋 Branch Logs", "🎯 Assign Tasks"])
+        branch_tickets = df_tickets[df_tickets['Branch'] == st.session_state.branch]
         
-        with t1:
-            st.write("**Completed Tickets & Maintenance**")
-            st.dataframe(df_tickets[df_tickets['Branch'] == st.session_state.branch], use_container_width=True)
+        tab1, tab2, tab3 = st.tabs(["🔍 Analytics & Filters", "🚨 Predictive Alerts", "🎯 Operations & Export"])
+        
+        with tab1:
+            st.markdown("#### Advanced Search & Logs")
+            c1, c2 = st.columns(2)
+            filter_dept = c1.multiselect("Filter by Department", DEPARTMENTS, default=DEPARTMENTS)
             
-        with t2:
-            st.write("**Dispatch Order to Technician**")
-            with st.form("assign_form"):
-                a_type = st.selectbox("Priority & Task Type", ["Emergency Breakdown", "Maintenance Day", "Preventative Care"])
-                a_tech = st.text_input("Assign to (Exact Name)")
-                a_desc = st.text_area("Detailed Instructions")
-                if st.form_submit_button("📤 Dispatch Task"):
-                    send_telegram(f"🔔 NEW TASK ALERT ({a_type})\nTo: {a_tech}\nDetails: {a_desc}\nFrom: Management", st.session_state.branch)
-                    st.success("Task dispatched and Telegram notification sent!")
+            # Safe check for tech names
+            tech_options = branch_tickets['Tech_Name'].unique() if not branch_tickets.empty else []
+            filter_tech = c2.multiselect("Filter by Technician", tech_options)
+            
+            filtered_df = branch_tickets[branch_tickets['Dept'].isin(filter_dept)]
+            if filter_tech:
+                filtered_df = filtered_df[filtered_df['Tech_Name'].isin(filter_tech)]
+                
+            st.dataframe(filtered_df, use_container_width=True)
+            
+        with tab2:
+            st.markdown("#### Predictive Maintenance Intelligence")
+            if not branch_tickets.empty:
+                # Count failures per device
+                device_counts = branch_tickets['Device'].value_counts()
+                problematic = device_counts[device_counts >= 3]
+                
+                if problematic.empty:
+                    st.success("✅ All systems optimal. No recurring device issues detected.")
+                else:
+                    for dev, count in problematic.items():
+                        st.markdown(f"<div class='warning-box'>⚠️ <b>CRITICAL WARNING:</b> Device '<b>{dev}</b>' has broken down {count} times! Immediate root cause analysis is strongly recommended to prevent further downtime.</div>", unsafe_allow_html=True)
+            else:
+                st.info("Not enough data to run predictive models yet.")
+                
+        with tab3:
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                st.markdown("#### Dispatch Tasks")
+                with st.form("assign_form"):
+                    a_type = st.selectbox("Priority & Task Type", ["Emergency Breakdown", "Maintenance Day", "Preventative Care"])
+                    a_tech = st.text_input("Assign to (Exact Name)")
+                    a_desc = st.text_area("Detailed Instructions")
+                    if st.form_submit_button("📤 Dispatch Task", type="primary"):
+                        send_telegram(f"🔔 NEW TASK ALERT ({a_type})\nTo: {a_tech}\nDetails: {a_desc}\nFrom: Management", st.session_state.branch)
+                        st.success("Task dispatched and Telegram notification sent!")
+            with c2:
+                st.markdown("#### Generate Reports")
+                st.info("Download full maintenance logs for Excel/PDF conversion.")
+                if not branch_tickets.empty:
+                    csv_data = branch_tickets.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Excel/CSV Report",
+                        data=csv_data,
+                        file_name=f"MMC_Maintenance_Report_{st.session_state.branch}.csv",
+                        mime="text/csv",
+                    )
+                else:
+                    st.warning("No records to export.")
