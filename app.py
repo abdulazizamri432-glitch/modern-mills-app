@@ -2,74 +2,241 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import random
 from datetime import datetime
 
-# --- إعدادات النظام ---
-st.set_page_config(page_title="MMC Smart CMMS", page_icon="🏭", layout="wide")
+# ==========================================
+# 1. System Configuration
+# ==========================================
+st.set_page_config(page_title="MMC Smart Maintenance", page_icon="🏭", layout="wide")
+
+# Minimal & Clean CSS for buttons only
+st.markdown("""
+<style>
+    .stButton>button { border-radius: 6px; font-weight: bold; width: 100%; }
+    .main-header { text-align: center; color: #2C3E50; margin-bottom: 5px; }
+    .sub-header { text-align: center; color: #7F8C8D; margin-bottom: 40px; }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 2. Telegram & Settings
+# ==========================================
 BOT_TOKEN = "8912670603:AAEr-hufquf8PIxnv-aKv0fz-9WgZa0oRks"
-BRANCH_CHATS = {"الجموم": "-5159290787", "الجوف": "-5176017884", "خميس مشيط": "-5104633079"}
-BRANCH_NAMES = {"الجموم": "Al-Jumum", "الجوف": "Al-Jouf", "خميس مشيط": "Khamis Mushait"}
-BRANCH_PASSCODES = {"الجموم": "2004", "الجوف": "2026", "خميس مشيط": "1425"}
+# The exact Chat IDs you provided:
+BRANCH_CHATS = {
+    "Al-Jumum": "-5159290787", 
+    "Al-Jouf": "-5176017884", 
+    "Khamis Mushait": "-5104633079"
+}
+BRANCH_PASSCODES = {
+    "Al-Jumum": "2004", 
+    "Al-Jouf": "2026", 
+    "Khamis Mushait": "1425"
+}
+DEPARTMENTS = ["Mechanics", "Electrical", "Welding", "HVAC"]
 
-def t(ar, en, lang): return ar if lang == "عربي" else en
+MOTIVATIONS = [
+    "Outstanding work! You're the backbone of this factory! 🚀",
+    "Brilliant job! Another problem solved like a true pro! 💯",
+    "Exceptional effort! You're keeping the gears turning! ⚙️🔥",
+    "Fantastic! Your dedication is what makes MMC great! 🌟",
+    "Masterful execution! Keep up the incredible momentum! 🏆"
+]
 
-def send_alert(msg, branch):
+def send_telegram(msg, branch):
     chat_id = BRANCH_CHATS.get(branch)
-    try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": chat_id, "text": f"🏭 {branch} Update:\n{msg}"})
-    except: pass
+    if chat_id:
+        try: requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": chat_id, "text": f"📍 [{branch} Update]:\n{msg}"})
+        except: pass
 
-# --- تحميل/تهيئة البيانات ---
-db_path, rolls_path = "smart_factory_db.csv", "rolls_db.csv"
-if not os.path.exists(db_path): pd.DataFrame(columns=["Branch", "EmpID", "Dept", "Equip", "Desc", "Status", "Tech"]).to_csv(db_path, index=False)
-if not os.path.exists(rolls_path): pd.DataFrame(columns=["ID", "Branch", "Status", "Machine", "Date"]).to_csv(rolls_path, index=False)
+# ==========================================
+# 3. Database Initialization
+# ==========================================
+files = {
+    "tickets_db.csv": ["Date", "Branch", "Dept", "Type", "Device", "Location", "Tech_Name", "Points", "Status"],
+    "rolls_db.csv": ["Date", "Branch", "Roll_Type", "Status", "Device", "Start_Time", "End_Time"],
+    "users_db.csv": ["Name", "EmpID", "Branch", "Dept", "Total_Points"]
+}
+for file, cols in files.items():
+    if not os.path.exists(file): pd.DataFrame(columns=cols).to_csv(file, index=False)
 
-df, df_rolls = pd.read_csv(db_path), pd.read_csv(rolls_path)
+df_tickets = pd.read_csv("tickets_db.csv")
+df_rolls = pd.read_csv("rolls_db.csv")
+df_users = pd.read_csv("users_db.csv")
 
-# --- واجهة الدخول ---
-if 'lang' not in st.session_state: st.session_state.lang = "عربي"
+# ==========================================
+# 4. Session State Management
+# ==========================================
+if 'welcome_screen' not in st.session_state: st.session_state.welcome_screen = True
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-if not st.session_state.logged_in:
-    if st.button("🌐 Switch Language"): st.session_state.lang = "English" if st.session_state.lang == "عربي" else "عربي"; st.rerun()
-    st.title("🏭 Modern Mills Smart CMMS")
-    branch = st.selectbox("Select Branch / الفرع", list(BRANCH_CHATS.keys()))
-    name, eid = st.text_input("Name / الاسم"), st.text_input("Emp ID / الرقم الوظيفي")
-    role = st.radio("Role / الصفة", ["Manager", "Technician"])
-    passcode = st.text_input("Passcode", type="password") if role == "Manager" else ""
+# ==========================================
+# 5. Welcome Screen
+# ==========================================
+if st.session_state.welcome_screen:
+    st.markdown("<h1 class='main-header'>🏭 MMC Smart Maintenance</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 class='sub-header'>Enterprise Asset & Task Management System</h3>", unsafe_allow_html=True)
     
-    if st.button("Login / دخول"):
-        if role == "Manager" and passcode != BRANCH_PASSCODES.get(branch): st.error("Wrong Passcode!")
-        else: st.session_state.update({"logged_in": True, "branch": branch, "name": name, "role": role}); st.rerun()
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.info("Welcome to the centralized maintenance hub. Please proceed to authenticate.")
+        if st.button("Access Portal 🔐", type="primary"):
+            st.session_state.welcome_screen = False
+            st.rerun()
+
+# ==========================================
+# 6. Login Screen (Centered & Clean)
+# ==========================================
+elif not st.session_state.logged_in:
+    st.markdown("<h2 class='main-header'>System Authentication</h2><br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.container(border=True):
+            branch = st.selectbox("Select Branch", list(BRANCH_CHATS.keys()))
+            name = st.text_input("Full Name")
+            eid = st.text_input("Employee ID")
+            dept = st.selectbox("Department", DEPARTMENTS)
+            role = st.radio("Access Level", ["Technician", "Manager / Supervisor"])
+            passcode = st.text_input("Passcode (Managers Only)", type="password") if "Manager" in role else ""
+
+            st.write("") 
+            if st.button("Login", type="primary"):
+                if "Manager" in role and passcode != BRANCH_PASSCODES.get(branch):
+                    st.error("❌ Invalid Manager Passcode for this branch!")
+                elif not name or not eid:
+                    st.warning("⚠️ Please fill in your Name and Employee ID.")
+                else:
+                    st.session_state.update({"logged_in": True, "name": name, "eid": eid, "branch": branch, "dept": dept, "role": role})
+                    if eid not in df_users['EmpID'].astype(str).values:
+                        pd.concat([df_users, pd.DataFrame([{"Name": name, "EmpID": eid, "Branch": branch, "Dept": dept, "Total_Points": 0}])]).to_csv("users_db.csv", index=False)
+                    st.rerun()
+
+# ==========================================
+# 7. Main Dashboard
+# ==========================================
 else:
-    # --- اللوحة الإبداعية ---
-    st.sidebar.subheader(f"👋 {st.session_state.name}")
-    if st.sidebar.button("Logout"): st.session_state.logged_in = False; st.rerun()
+    st.sidebar.markdown(f"## 👤 {st.session_state.name}")
+    st.sidebar.markdown(f"**🏢 Branch:** {st.session_state.branch}")
+    st.sidebar.markdown(f"**🛠️ Dept:** {st.session_state.dept}")
+    st.sidebar.markdown("---")
+    
+    user_pts = df_tickets[df_tickets['Tech_Name'] == st.session_state.name]['Points'].sum()
+    if st.session_state.role == "Technician":
+        rank = "Elite Master 👑" if user_pts >= 100 else "Rising Star ⭐️" if user_pts >= 50 else "Creative Tech 🔧"
+        st.sidebar.metric(label="Current Rank", value=rank)
+        st.sidebar.metric(label="Total Points", value=f"{user_pts} Pts")
+        st.sidebar.markdown("---")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Branch", st.session_state.branch)
-    c2.metric("Tickets", len(df[df['Branch'] == st.session_state.branch]))
-    c3.metric("Ready Rolls", len(df_rolls[(df_rolls['Branch'] == st.session_state.branch) & (df_rolls['Status'] == 'جاهز')]))
+    if st.sidebar.button("Logout 🚪"):
+        st.session_state.logged_in = False
+        st.session_state.welcome_screen = True
+        st.rerun()
 
-    t1, t2 = st.tabs(["🛠️ Maintenance Management", "⚙️ Roll Lifecycle"])
-
-    with t1:
-        if st.session_state.role == "Manager":
-            with st.form("ticket"):
-                eq, desc = st.text_input("Equipment"), st.text_area("Details")
-                if st.form_submit_button("Create Ticket"):
-                    pd.concat([df, pd.DataFrame([{"Branch": st.session_state.branch, "Equip": eq, "Desc": desc, "Status": "New", "Tech": st.session_state.name}])]).to_csv(db_path, index=False)
-                    send_alert(f"🚨 New Work Order:\n{eq}\n{desc}", st.session_state.branch)
-        st.dataframe(df[df['Branch'] == st.session_state.branch])
-
-    with t2:
-        new_r = st.text_input("Enter New Roll ID")
-        if st.button("Add Roll"):
-            pd.concat([df_rolls, pd.DataFrame([{"ID": new_r, "Branch": st.session_state.branch, "Status": "جاهز"}])]).to_csv(rolls_path, index=False); st.rerun()
+    # ------------------------------------------
+    # TECHNICIAN DASHBOARD
+    # ------------------------------------------
+    if st.session_state.role == "Technician":
+        t1, t2, t3 = st.tabs(["🛠️ Maintenance Tasks", "📋 Rolls Management", "🏆 Global Leaderboard"])
         
-        for idx, row in df_rolls[df_rolls['Branch'] == st.session_state.branch].iterrows():
-            with st.expander(f"Roll: {row['ID']} - {row['Status']}"):
-                if row['Status'] == "جاهز":
-                    mach = st.text_input("Machine Name", key=f"m{idx}")
-                    if st.button("Install Roll", key=f"b{idx}"):
-                        df_rolls.loc[idx, ['Status', 'Machine', 'Date']] = ["قيد التنفيذ", mach, datetime.now().strftime("%Y-%m-%d")]
-                        df_rolls.to_csv(rolls_path, index=False); send_alert(f"✅ Roll {row['ID']} installed on {mach}", st.session_state.branch); st.rerun()
+        with t1:
+            st.subheader("Submit New Maintenance Record")
+            with st.container(border=True):
+                task_type = st.radio("Select Task Type:", ["Work Request Order (WRO) - 10 Pts", "Preventative Request Order (PRO) - 20 Pts"])
+                c1, c2 = st.columns(2)
+                device = c1.text_input("Device Name / ID")
+                loc = c2.text_input("Exact Location")
+                
+                c_start, c_end = st.columns(2)
+                start_t = c_start.time_input("Task Start Time")
+                end_t = c_end.time_input("Task End Time")
+                
+                st.write("**Media & Attachments (Optional)**")
+                img = st.file_uploader("Upload Work Proof (Image)", type=['png', 'jpg', 'jpeg'])
+                aud = st.audio_input("Record Voice Notes")
+                
+                if st.button("🚀 Submit Task & Earn Points", type="primary"):
+                    pts = 10 if "WRO" in task_type else 20
+                    short_type = "WRO" if "WRO" in task_type else "PRO"
+                    new_t = pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Dept": st.session_state.dept, "Type": short_type, "Device": device, "Location": loc, "Tech_Name": st.session_state.name, "Points": pts, "Status": "Completed"}])
+                    pd.concat([df_tickets, new_t]).to_csv("tickets_db.csv", index=False)
+                    send_telegram(f"✅ Task Completed ({short_type})\nTech: {st.session_state.name}\nDevice: {device}\nPoints Earned: +{pts}", st.session_state.branch)
+                    
+                    st.balloons()
+                    motivational_quote = random.choice(MOTIVATIONS)
+                    st.success(f"**Task Submitted Successfully! (+{pts} Pts)**\n\n💬 *{motivational_quote}*")
+
+        with t2:
+            st.subheader("Roll Lifecycle Management")
+            roll_action = st.radio("Choose Action:", ["Install/Replace a Roll", "Manage Inventory (Ready Rolls)"])
+            
+            if "Install" in roll_action:
+                with st.container(border=True):
+                    r_device = st.text_input("Target Device Name/ID:", key="rd")
+                    r_type = st.text_input("Roll Type:", key="rt")
+                    c1, c2 = st.columns(2)
+                    r_start = c1.time_input("Installation Start Time:", key="rs")
+                    r_end = c2.time_input("Installation End Time:", key="re")
+                    
+                    if st.button("Confirm Installation ⚙️", type="primary"):
+                        pd.concat([df_rolls, pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Roll_Type": r_type, "Status": "Installed", "Device": r_device, "Start_Time": str(r_start), "End_Time": str(r_end)}])]).to_csv("rolls_db.csv", index=False)
+                        
+                        df_ready = pd.read_csv("rolls_db.csv")
+                        idx_drop = df_ready[(df_ready['Branch'] == st.session_state.branch) & (df_ready['Status'] == "Ready") & (df_ready['Roll_Type'] == r_type)].index
+                        if not idx_drop.empty:
+                            df_ready = df_ready.drop(idx_drop[0])
+                            df_ready.to_csv("rolls_db.csv", index=False)
+                            
+                        send_telegram(f"⚙️ Roll Installed\nType: {r_type}\nDevice: {r_device}\nTech: {st.session_state.name}", st.session_state.branch)
+                        st.success("Roll installation logged perfectly. Inventory updated!")
+            else:
+                with st.container(border=True):
+                    new_ready = st.text_input("Enter New Roll Type:")
+                    if st.button("➕ Add to Ready Stock"):
+                        pd.concat([df_rolls, pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Branch": st.session_state.branch, "Roll_Type": new_ready, "Status": "Ready", "Device": "N/A", "Start_Time": "N/A", "End_Time": "N/A"}])]).to_csv("rolls_db.csv", index=False)
+                        st.rerun()
+                    st.write("**Current Ready Inventory**")
+                    st.dataframe(df_rolls[(df_rolls['Branch'] == st.session_state.branch) & (df_rolls['Status'] == 'Ready')][['Date', 'Roll_Type']], use_container_width=True)
+
+        with t3:
+            st.subheader("Wall of Fame 🏆")
+            leaderboard = df_tickets.groupby(['Branch', 'Dept', 'Tech_Name'])['Points'].sum().reset_index()
+            
+            c_local, c_global = st.columns(2)
+            with c_local:
+                st.write(f"**🏢 Top in {st.session_state.branch}**")
+                branch_lb = leaderboard[leaderboard['Branch'] == st.session_state.branch].sort_values(by='Points', ascending=False)
+                for dpt in DEPARTMENTS:
+                    dept_top = branch_lb[branch_lb['Dept'] == dpt]
+                    if not dept_top.empty:
+                        st.info(f"**{dpt}:** {dept_top.iloc[0]['Tech_Name']} ({dept_top.iloc[0]['Points']} pts)")
+            
+            with c_global:
+                st.write("**🌍 Top 3 Company-Wide**")
+                global_lb = df_tickets.groupby('Tech_Name')['Points'].sum().reset_index().sort_values(by='Points', ascending=False).head(3)
+                medals = ["🥇", "🥈", "🥉"]
+                for i, row in global_lb.reset_index(drop=True).iterrows():
+                    st.success(f"{medals[i]} {row['Tech_Name']} - {row['Points']} pts")
+
+    # ------------------------------------------
+    # MANAGER DASHBOARD
+    # ------------------------------------------
+    elif "Manager" in st.session_state.role:
+        st.subheader(f"📊 Command Center - {st.session_state.branch}")
+        
+        t1, t2 = st.tabs(["📋 Branch Logs", "🎯 Assign Tasks"])
+        
+        with t1:
+            st.write("**Completed Tickets & Maintenance**")
+            st.dataframe(df_tickets[df_tickets['Branch'] == st.session_state.branch], use_container_width=True)
+            
+        with t2:
+            st.write("**Dispatch Order to Technician**")
+            with st.form("assign_form"):
+                a_type = st.selectbox("Priority & Task Type", ["Emergency Breakdown", "Maintenance Day", "Preventative Care"])
+                a_tech = st.text_input("Assign to (Exact Name)")
+                a_desc = st.text_area("Detailed Instructions")
+                if st.form_submit_button("📤 Dispatch Task"):
+                    send_telegram(f"🔔 NEW TASK ALERT ({a_type})\nTo: {a_tech}\nDetails: {a_desc}\nFrom: Management", st.session_state.branch)
+                    st.success("Task dispatched and Telegram notification sent!")
