@@ -6,15 +6,34 @@ import requests
 # --- Page Configuration ---
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layout="wide")
 
-# --- Telegram Settings ---
-TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE"
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
+# ==========================================
+# ⚠️ إعدادات التليجرام والفروع (عدلها هنا مرة واحدة بس)
+# ==========================================
+TELEGRAM_BOT_TOKEN = "ضع_التوكن_هنا"
 
-def send_telegram_message(text):
-    """Send Rich Notifications to Telegram"""
+# أرقام قروبات التليجرام لكل فرع (حط الأرقام اللي أرسلتها لي هنا)
+TELEGRAM_CHATS = {
+    "Al-Jumum": "رقم_قروب_الجموم_هنا",
+    "Al-Jouf": "رقم_قروب_الجوف_هنا",
+    "Khamis Mushait": "رقم_قروب_خميس_مشيط_هنا"
+}
+
+# كلمات المرور الخاصة بمدير كل فرع
+BRANCH_PASSWORDS = {
+    "Al-Jumum": "Jumum123",
+    "Al-Jouf": "Jouf123",
+    "Khamis Mushait": "Khamis123"
+}
+
+def send_telegram_message(text, branch):
+    """إرسال الإشعار لقروب الفرع المحدد فقط"""
+    chat_id = TELEGRAM_CHATS.get(branch)
+    if not chat_id or chat_id.startswith("رقم_"):
+        return # يتجاهل الإرسال إذا ما حطيت الرقم الصحيح
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": chat_id,
         "text": text,
         "parse_mode": "Markdown"
     }
@@ -56,7 +75,7 @@ if not st.session_state.splash_done:
     st.rerun()
 
 # ==========================================
-# 2. LOGIN SYSTEM (تسجيل الدخول المرتب)
+# 2. LOGIN SYSTEM (تسجيل الدخول الديناميكي)
 # ==========================================
 elif not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -73,11 +92,14 @@ elif not st.session_state.logged_in:
         with col_a:
             branch = st.selectbox("🏢 Branch", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
             role = st.selectbox("🔑 Role", ["Technician", "Manager"])
+            
         with col_b:
-            department = st.selectbox("🛠️ Department", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations"])
-            password = ""
-            if role == "Manager":
-                password = st.text_input("🛡️ Manager Password", type="password")
+            if role == "Technician":
+                department = st.selectbox("🛠️ Department", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations"])
+                password = ""
+            else:
+                department = "Management"
+                password = st.text_input("🛡️ Manager Password", type="password", placeholder=f"Password for {branch}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         remember_me = st.checkbox("💾 Remember Me (Auto-Save Login)")
@@ -85,8 +107,8 @@ elif not st.session_state.logged_in:
         if st.button("Login to Workspace 🚀", type="primary", use_container_width=True):
             if not emp_name or not emp_id:
                 st.error("⚠️ Please enter your Full Name and Employee ID.")
-            elif role == "Manager" and password != "admin123": # كلمة سر المدير
-                st.error("❌ Incorrect Manager Password!")
+            elif role == "Manager" and password != BRANCH_PASSWORDS.get(branch): 
+                st.error(f"❌ Incorrect Password for {branch} Manager!")
             else:
                 st.session_state.user_info = {
                     "name": emp_name,
@@ -104,7 +126,6 @@ elif not st.session_state.logged_in:
 # 3. MAIN APPLICATION (النظام الرئيسي)
 # ==========================================
 else:
-    # User Info
     u_name = st.session_state.user_info['name']
     u_branch = st.session_state.user_info['branch']
     u_dept = st.session_state.user_info['dept']
@@ -114,14 +135,18 @@ else:
     st.sidebar.markdown(f"### 🏢 {u_branch} Branch")
     st.sidebar.markdown("---")
     st.sidebar.write(f"**👤 Name:** {u_name}")
-    st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
+    if u_role == "Technician":
+        st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
     st.sidebar.write(f"**🔑 Role:** {u_role}")
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout 🚪", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title(f"⚙️ MMC Workspace - {u_dept} Department")
+    if u_role == "Manager":
+        st.title(f"⚙️ MMC Workspace - Branch Management")
+    else:
+        st.title(f"⚙️ MMC Workspace - {u_dept} Department")
     st.markdown("---")
     
     # Setup Tabs
@@ -136,7 +161,7 @@ else:
     tab_reels = tabs[4] if u_role == "Manager" else tabs[3]
 
     # ------------------------------------------
-    # TAB 1: TASK LOGGING (منطقة تسجيل الصيانة)
+    # TAB 1: TASK LOGGING
     # ------------------------------------------
     with tab_logging:
         st.subheader("📝 Log New Maintenance Task")
@@ -167,21 +192,22 @@ else:
                 else:
                     if st.button("✅ Close Task & Claim Points", type="primary", use_container_width=True):
                         team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
+                        dept_str = f"({u_dept})" if u_role == "Technician" else "(Management)"
                         msg = f"""
 ✅ *Task Completed Successfully ({task_type[:3]})*
 ━━━━━━━━━━━━━━
 🏢 *Branch:* {u_branch}
 📍 *Machine/Loc:* {machine_name}
-👨‍🔧 *Team:* {team_str} ({u_dept})
+👨‍🔧 *Team:* {team_str} {dept_str}
 📝 *Details:* {issue_desc}
 🔒 *Safety:* LOTO Verified 📸
 """
-                        send_telegram_message(msg)
+                        send_telegram_message(msg, u_branch) # إرسال للفرع الخاص فقط
                         st.success("🎉 Task saved! Notifications sent to branch management.")
                         st.balloons()
 
     # ------------------------------------------
-    # TAB 2: SOS BACKUP (منطقة الفزعة)
+    # TAB 2: SOS BACKUP
     # ------------------------------------------
     with tab_sos:
         st.subheader("🚨 Emergency SOS Backup")
@@ -206,11 +232,11 @@ else:
 
 🏃‍♂️ *Available team members, please assist immediately!*
 """
-                    send_telegram_message(sos_msg)
+                    send_telegram_message(sos_msg, u_branch) # إرسال للفرع الخاص فقط
                     st.error("🚨 SOS Broadcast sent! Hold tight, the team is on the way.")
 
     # ------------------------------------------
-    # TAB 3: PIT STOP CHALLENGE (تحدي الرولات)
+    # TAB 3: PIT STOP CHALLENGE
     # ------------------------------------------
     with tab_pitstop:
         st.subheader("🏎️ F1 Pit Stop Challenge")
@@ -240,13 +266,13 @@ else:
                     st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
                     
                     msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n**{u_name}** replaced [{pit_machine}] in *{mins}m {secs}s*! 🏁"
-                    send_telegram_message(msg)
+                    send_telegram_message(msg, u_branch) # إرسال للفرع الخاص فقط
                     st.balloons()
                     st.session_state.start_time = None
                     st.rerun()
 
     # ------------------------------------------
-    # TAB 4: MAINTENANCE REELS (تيك توك الصيانة)
+    # TAB 4: MAINTENANCE REELS
     # ------------------------------------------
     with tab_reels:
         st.subheader("🎬 Maintenance Reels")
@@ -265,10 +291,10 @@ else:
                     else:
                         st.success(f"Reel '{video_title}' published successfully!")
                         msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
-                        send_telegram_message(msg)
+                        send_telegram_message(msg, u_branch) # إرسال للفرع الخاص فقط
 
     # ------------------------------------------
-    # TAB 5: MANAGER DASHBOARD (المدراء فقط)
+    # TAB 5: MANAGER DASHBOARD
     # ------------------------------------------
     if u_role == "Manager":
         with tabs[0]:
