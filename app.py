@@ -39,47 +39,53 @@ if 'start_time' not in st.session_state:
 # 1. SPLASH SCREEN (الافتتاحية)
 # ==========================================
 if not st.session_state.splash_done:
-    st.markdown("<h1 style='text-align: center; margin-top: 20%; font-size: 60px;'>⚙️ MMC Smart Maintenance</h1>", unsafe_allow_html=True)
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 60px; color: #2E86C1;'>⚙️ MMC Smart Maintenance</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; color: gray;'>Modern Mills Company</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Loading System Modules...</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Loading System Modules & Safety Protocols...</p>", unsafe_allow_html=True)
     
-    progress_bar = st.progress(0)
-    for i in range(100):
-        time.sleep(0.02)
-        progress_bar.progress(i + 1)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        progress_bar = st.progress(0)
+        for i in range(100):
+            time.sleep(0.015)
+            progress_bar.progress(i + 1)
     
     st.session_state.splash_done = True
     st.rerun()
 
 # ==========================================
-# 2. LOGIN SYSTEM (نظام تسجيل الدخول)
+# 2. LOGIN SYSTEM (تسجيل الدخول المرتب)
 # ==========================================
 elif not st.session_state.logged_in:
-    st.title("🔒 System Login")
-    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        emp_name = st.text_input("Full Name")
-        emp_id = st.text_input("Employee ID")
-        branch = st.selectbox("Branch", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
-        department = st.selectbox("Department", ["Mechanical", "Electrical", "Welding", "HVAC"])
-        
     with col2:
-        role = st.selectbox("Role", ["Technician", "Manager"])
-        password = ""
-        if role == "Manager":
-            password = st.text_input("Manager Password", type="password")
-            
+        st.title("🔒 System Login")
+        st.markdown("Please enter your credentials to access the MMC portal.")
+        st.markdown("---")
+        
+        emp_name = st.text_input("👤 Full Name", placeholder="e.g., Ahmed Al-Dawsari")
+        emp_id = st.text_input("💳 Employee ID", placeholder="e.g., 10452")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            branch = st.selectbox("🏢 Branch", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
+            role = st.selectbox("🔑 Role", ["Technician", "Manager"])
+        with col_b:
+            department = st.selectbox("🛠️ Department", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations"])
+            password = ""
+            if role == "Manager":
+                password = st.text_input("🛡️ Manager Password", type="password")
+        
         st.markdown("<br>", unsafe_allow_html=True)
         remember_me = st.checkbox("💾 Remember Me (Auto-Save Login)")
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Login 🚀", type="primary", use_container_width=True):
+        if st.button("Login to Workspace 🚀", type="primary", use_container_width=True):
             if not emp_name or not emp_id:
-                st.error("⚠️ Please enter your Name and Employee ID.")
-            elif role == "Manager" and password != "admin123": # كلمة سر المدير هنا
+                st.error("⚠️ Please enter your Full Name and Employee ID.")
+            elif role == "Manager" and password != "admin123": # كلمة سر المدير
                 st.error("❌ Incorrect Manager Password!")
             else:
                 st.session_state.user_info = {
@@ -90,7 +96,7 @@ elif not st.session_state.logged_in:
                     "role": role
                 }
                 st.session_state.logged_in = True
-                st.success("Login Successful!")
+                st.success(f"Welcome back, {emp_name}!")
                 time.sleep(0.5)
                 st.rerun()
 
@@ -98,33 +104,31 @@ elif not st.session_state.logged_in:
 # 3. MAIN APPLICATION (النظام الرئيسي)
 # ==========================================
 else:
-    # User info variables for easy access
+    # User Info
     u_name = st.session_state.user_info['name']
     u_branch = st.session_state.user_info['branch']
     u_dept = st.session_state.user_info['dept']
     u_role = st.session_state.user_info['role']
     
-    # Sidebar Info
-    st.sidebar.title("👤 User Profile")
-    st.sidebar.write(f"**Name:** {u_name}")
-    st.sidebar.write(f"**Branch:** {u_branch}")
-    st.sidebar.write(f"**Department:** {u_dept}")
-    st.sidebar.write(f"**Role:** {u_role}")
-    if st.sidebar.button("Logout 🚪"):
+    # Sidebar
+    st.sidebar.markdown(f"### 🏢 {u_branch} Branch")
+    st.sidebar.markdown("---")
+    st.sidebar.write(f"**👤 Name:** {u_name}")
+    st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
+    st.sidebar.write(f"**🔑 Role:** {u_role}")
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Logout 🚪", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title(f"⚙️ MMC Smart Maintenance - {u_branch} Branch")
+    st.title(f"⚙️ MMC Workspace - {u_dept} Department")
     st.markdown("---")
     
-    # Machine List
-    machines = ["Mill A", "Mill B", "Packaging Belt", "Main Sifter", "Air Compressor"]
-    
-    # Establish Tabs based on Role
+    # Setup Tabs
     if u_role == "Manager":
-        tabs = st.tabs(["📊 Dashboard", "🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Maintenance Reels"])
+        tabs = st.tabs(["📊 Dashboard", "🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
     else:
-        tabs = st.tabs(["🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Maintenance Reels"])
+        tabs = st.tabs(["🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
         
     tab_logging = tabs[1] if u_role == "Manager" else tabs[0]
     tab_sos = tabs[2] if u_role == "Manager" else tabs[1]
@@ -132,54 +136,67 @@ else:
     tab_reels = tabs[4] if u_role == "Manager" else tabs[3]
 
     # ------------------------------------------
-    # TAB: TASK LOGGING & LOTO
+    # TAB 1: TASK LOGGING (منطقة تسجيل الصيانة)
     # ------------------------------------------
     with tab_logging:
-        st.header("🛠️ Log New Maintenance Task")
+        st.subheader("📝 Log New Maintenance Task")
+        st.markdown("Fill in the details below. **Machine Location is a free text field.**")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            task_type = st.radio("Task Type:", ["WRO (Emergency)", "PRO (Preventive)"])
-            machine_name = st.selectbox("Target Machine:", machines)
-            
-        with col2:
-            issue_desc = st.text_area("Task Description & Work Done:")
-            co_op_techs = st.text_input("Co-op Technicians (Leave blank if none):", placeholder="e.g., Ahmed (Electrical)")
-            
-        st.markdown("### 🔒 Mandatory Safety Checkpoint (LOTO)")
-        st.info("⚠️ You cannot close this task without capturing the LOTO Lockout on the machine.")
-        
-        loto_photo = st.camera_input("Capture LOTO Lock 📸")
-        
-        if loto_photo is not None:
-            if st.button("✅ Close Task & Claim Points", use_container_width=True):
-                team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
+        container1 = st.container(border=True)
+        with container1:
+            col1, col2 = st.columns(2)
+            with col1:
+                task_type = st.radio("Task Type:", ["WRO (Emergency 🔴)", "PRO (Preventive 🟢)"])
+                machine_name = st.text_input("📍 Target Machine & Location:", placeholder="e.g., Mill A - 2nd Floor, Main Belt")
                 
-                msg = f"""
+            with col2:
+                issue_desc = st.text_area("📝 Description & Work Done:", placeholder="What was the issue and how did you fix it?", height=110)
+                co_op_techs = st.text_input("👥 Co-op Technicians (If any):", placeholder="e.g., Khalid (Electrical)")
+                
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        container2 = st.container(border=True)
+        with container2:
+            st.markdown("### 🔒 Mandatory Safety Checkpoint (LOTO)")
+            st.info("⚠️ You cannot close this task without capturing the LOTO Lockout on the machine.")
+            loto_photo = st.camera_input("Capture LOTO Lock 📸")
+            
+            if loto_photo is not None:
+                if not machine_name or not issue_desc:
+                    st.warning("Please fill in the Machine Location and Description first.")
+                else:
+                    if st.button("✅ Close Task & Claim Points", type="primary", use_container_width=True):
+                        team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
+                        msg = f"""
 ✅ *Task Completed Successfully ({task_type[:3]})*
 ━━━━━━━━━━━━━━
 🏢 *Branch:* {u_branch}
-⚙️ *Machine:* {machine_name}
+📍 *Machine/Loc:* {machine_name}
 👨‍🔧 *Team:* {team_str} ({u_dept})
-📝 *Description:* {issue_desc}
-🔒 *Safety:* LOTO Verified visually.
+📝 *Details:* {issue_desc}
+🔒 *Safety:* LOTO Verified 📸
 """
-                send_telegram_message(msg)
-                st.success("🎉 Task saved! Notifications sent to branch management.")
-                st.balloons()
+                        send_telegram_message(msg)
+                        st.success("🎉 Task saved! Notifications sent to branch management.")
+                        st.balloons()
 
     # ------------------------------------------
-    # TAB: SOS BACKUP
+    # TAB 2: SOS BACKUP (منطقة الفزعة)
     # ------------------------------------------
     with tab_sos:
-        st.header("🚨 Emergency SOS Backup")
-        st.markdown("Need help with a heavy lift or complex issue? Call your branch team!")
+        st.subheader("🚨 Emergency SOS Backup")
         
-        sos_location = st.selectbox("Where are you?", machines)
-        sos_reason = st.text_input("What do you need?", placeholder="e.g., Need 2 guys to lift a motor")
-        
-        if st.button("🚨 Broadcast SOS to Branch 🚨", type="primary", use_container_width=True):
-            sos_msg = f"""
+        container3 = st.container(border=True)
+        with container3:
+            sos_location = st.text_input("📍 Where exactly are you?", placeholder="e.g., Packaging Area, Line 3")
+            sos_reason = st.text_input("⚠️ What do you need?", placeholder="e.g., Need 2 guys to lift a heavy motor")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🚨 Broadcast SOS to Branch 🚨", type="primary", use_container_width=True):
+                if not sos_location or not sos_reason:
+                    st.warning("Please specify your location and what you need!")
+                else:
+                    sos_msg = f"""
 🚨 *URGENT SOS BACKUP NEEDED!* 🚨
 ━━━━━━━━━━━━━━
 🏢 *Branch:* {u_branch}
@@ -189,64 +206,73 @@ else:
 
 🏃‍♂️ *Available team members, please assist immediately!*
 """
-            send_telegram_message(sos_msg)
-            st.error("🚨 SOS Broadcast sent to your branch Telegram group!")
+                    send_telegram_message(sos_msg)
+                    st.error("🚨 SOS Broadcast sent! Hold tight, the team is on the way.")
 
     # ------------------------------------------
-    # TAB: PIT STOP CHALLENGE
+    # TAB 3: PIT STOP CHALLENGE (تحدي الرولات)
     # ------------------------------------------
     with tab_pitstop:
-        st.header("🏎️ F1 Pit Stop Challenge (Roll Replacement)")
+        st.subheader("🏎️ F1 Pit Stop Challenge")
+        st.markdown("Record your fastest roll replacement time safely!")
         
-        pit_machine = st.selectbox("Machine for Roll Replacement:", ["Mill A", "Mill B"])
-        
-        if not st.session_state.pitstop_active:
-            if st.button("🏁 Start Timer", type="primary"):
-                st.session_state.pitstop_active = True
-                st.session_state.start_time = time.time()
-                st.rerun()
-        else:
-            st.warning("⏱️ Challenge is LIVE! Work safely and quickly.")
-            if st.button("🛑 Roll Replaced (Stop Timer)"):
-                end_time = time.time()
-                elapsed_seconds = int(end_time - st.session_state.start_time)
-                mins, secs = divmod(elapsed_seconds, 60)
-                
-                st.session_state.pitstop_active = False
-                st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
-                
-                msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n{u_name} replaced a roll on {pit_machine} in *{mins}m {secs}s*! 🏁"
-                send_telegram_message(msg)
-                st.balloons()
-                st.session_state.start_time = None
-                st.rerun()
+        container4 = st.container(border=True)
+        with container4:
+            pit_machine = st.text_input("⚙️ Machine / Roll Details:", placeholder="e.g., Mill B - Roll 4A")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if not st.session_state.pitstop_active:
+                if st.button("🏁 Start Timer", type="primary", use_container_width=True):
+                    if not pit_machine:
+                        st.warning("Please specify the Roll/Machine name first.")
+                    else:
+                        st.session_state.pitstop_active = True
+                        st.session_state.start_time = time.time()
+                        st.rerun()
+            else:
+                st.warning("⏱️ Challenge is LIVE! Work safely and quickly.")
+                if st.button("🛑 Roll Replaced (Stop Timer)", use_container_width=True):
+                    end_time = time.time()
+                    elapsed_seconds = int(end_time - st.session_state.start_time)
+                    mins, secs = divmod(elapsed_seconds, 60)
+                    
+                    st.session_state.pitstop_active = False
+                    st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
+                    
+                    msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n**{u_name}** replaced [{pit_machine}] in *{mins}m {secs}s*! 🏁"
+                    send_telegram_message(msg)
+                    st.balloons()
+                    st.session_state.start_time = None
+                    st.rerun()
 
     # ------------------------------------------
-    # TAB: MAINTENANCE REELS (TIKTOK)
+    # TAB 4: MAINTENANCE REELS (تيك توك الصيانة)
     # ------------------------------------------
     with tab_reels:
-        st.header("🎬 Maintenance Reels")
-        st.markdown("Share your expertise, a quick fix, or a safety tip with the team.")
-        
-        # Name is automatically pulled from login (no selectbox)
+        st.subheader("🎬 Maintenance Reels")
         st.info(f"Posting as: **{u_name}** ({u_role})")
         
-        video_title = st.text_input("Reel Title:")
-        video_file = st.file_uploader("Upload Video (MP4)", type=['mp4'])
-        
-        if video_file is not None:
-            st.video(video_file)
-            if st.button("🚀 Publish Reel"):
-                st.success(f"Reel '{video_title}' published successfully by {u_name}!")
-                msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
-                send_telegram_message(msg)
+        container5 = st.container(border=True)
+        with container5:
+            video_title = st.text_input("📌 Reel Title:", placeholder="e.g., How to calibrate the new sensor")
+            video_file = st.file_uploader("📤 Upload Video (MP4)", type=['mp4'])
+            
+            if video_file is not None:
+                st.video(video_file)
+                if st.button("🚀 Publish Reel", type="primary", use_container_width=True):
+                    if not video_title:
+                        st.warning("Please add a title for your reel.")
+                    else:
+                        st.success(f"Reel '{video_title}' published successfully!")
+                        msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
+                        send_telegram_message(msg)
 
     # ------------------------------------------
-    # TAB: MANAGER DASHBOARD (Managers Only)
+    # TAB 5: MANAGER DASHBOARD (المدراء فقط)
     # ------------------------------------------
     if u_role == "Manager":
         with tabs[0]:
-            st.header(f"📊 {u_branch} Branch - Manager Dashboard")
+            st.subheader(f"📊 {u_branch} - Manager Dashboard")
             
             col1, col2, col3 = st.columns(3)
             col1.metric("Today's WRO Reports", "5", "-2")
