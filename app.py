@@ -1,19 +1,17 @@
 import streamlit as st
 import pandas as pd
-import datetime
-import requests
 import time
+import requests
 
-# --- إعدادات الصفحة ---
+# --- Page Configuration ---
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layout="wide")
 
-# --- المتغيرات الأساسية (الرجاء وضع التوكن الخاص بك هنا) ---
-TELEGRAM_BOT_TOKEN = "ضع_التوكن_هنا"
-TELEGRAM_CHAT_ID = "ضع_رقم_القروب_هنا"
+# --- Telegram Settings ---
+TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
 
-# --- دوال مساعدة ---
 def send_telegram_message(text):
-    """دالة لإرسال رسائل فخمة للتليجرام باستخدام Markdown"""
+    """Send Rich Notifications to Telegram"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -23,161 +21,242 @@ def send_telegram_message(text):
     try:
         requests.post(url, json=payload)
     except Exception as e:
-        pass # يتجاهل الخطأ لو مافيه إنترنت
+        pass
 
-# --- قاعدة بيانات تجريبية ---
-technicians = ["أحمد الدوسري", "خالد عبدالله", "ياسر محمد", "سعد القحطاني"]
-machines = ["طاحونة أ", "طاحونة ب", "سير التغليف", "خزان التعبئة", "الغربال الرئيسي"]
-
-# --- تهيئة متغيرات تحدي البيت ستوب ---
+# --- Session State Initialization ---
+if 'splash_done' not in st.session_state:
+    st.session_state.splash_done = False
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user_info' not in st.session_state:
+    st.session_state.user_info = {}
 if 'pitstop_active' not in st.session_state:
     st.session_state.pitstop_active = False
 if 'start_time' not in st.session_state:
     st.session_state.start_time = None
 
-# --- واجهة الموقع ---
-st.title("⚙️ نظام المطاحن الحديثة للصيانة الذكية (MMC)")
-st.markdown("---")
-
-# تقسيم الموقع إلى أقسام (Tabs) لسهولة التنقل
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🛠️ تسجيل صيانة (LOTO)", 
-    "🚨 الفزعة", 
-    "🏎️ تحدي البيت ستوب", 
-    "🎬 تيك توك الصيانة",
-    "📊 لوحة الإدارة"
-])
+# ==========================================
+# 1. SPLASH SCREEN (الافتتاحية)
+# ==========================================
+if not st.session_state.splash_done:
+    st.markdown("<h1 style='text-align: center; margin-top: 20%; font-size: 60px;'>⚙️ MMC Smart Maintenance</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: gray;'>Modern Mills Company</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Loading System Modules...</p>", unsafe_allow_html=True)
+    
+    progress_bar = st.progress(0)
+    for i in range(100):
+        time.sleep(0.02)
+        progress_bar.progress(i + 1)
+    
+    st.session_state.splash_done = True
+    st.rerun()
 
 # ==========================================
-# التاب الأول: تسجيل الصيانة والورشة المشتركة
+# 2. LOGIN SYSTEM (نظام تسجيل الدخول)
 # ==========================================
-with tab1:
-    st.header("🛠️ تسجيل مهمة صيانة جديدة")
+elif not st.session_state.logged_in:
+    st.title("🔒 System Login")
+    st.markdown("---")
     
     col1, col2 = st.columns(2)
+    
     with col1:
-        task_type = st.radio("نوع المهمة:", ["WRO (عطل طارئ)", "PRO (صيانة دورية)"])
-        machine_name = st.selectbox("المعدة المستهدفة:", machines)
-        issue_desc = st.text_area("وصف العمل الذي تم إنجازه:")
+        emp_name = st.text_input("Full Name")
+        emp_id = st.text_input("Employee ID")
+        branch = st.selectbox("Branch", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
+        department = st.selectbox("Department", ["Mechanical", "Electrical", "Welding", "HVAC"])
         
     with col2:
-        main_tech = st.selectbox("الفني المسؤول (قائد المهمة):", technicians)
-        co_op_techs = st.multiselect("إضافة زملاء للمهمة (نظام الورشة المشتركة 👥):", technicians)
-    
-    st.markdown("### 🔒 نقطة التفتيش الإجبارية (LOTO)")
-    st.info("⚠️ لن تتمكن من إغلاق المهمة حتى تقوم بتصوير قفل العزل الآمن (LOTO) على المعدة.")
-    
-    loto_photo = st.camera_input("الرجاء التقاط صورة قفل العزل 📸")
-    
-    # لا يظهر زر الإغلاق إلا إذا تم التقاط الصورة
-    if loto_photo is not None:
-        if st.button("✅ إغلاق المهمة واعتماد الشغل", use_container_width=True):
-            team = [main_tech] + co_op_techs
-            team_str = "، ".join(team)
+        role = st.selectbox("Role", ["Technician", "Manager"])
+        password = ""
+        if role == "Manager":
+            password = st.text_input("Manager Password", type="password")
             
-            # رسالة التليجرام الفخمة
-            msg = f"""
-✅ *تم إنجاز مهمة بنجاح ({task_type[:3]})*
-━━━━━━━━━━━━━━
-⚙️ *المعدة:* {machine_name}
-👨‍🔧 *فريق العمل:* {team_str}
-📝 *الوصف:* {issue_desc}
-🔒 *السلامة:* تم التأكيد بصورة LOTO الميدانية.
-🏆 *النقاط:* تمت إضافة النقاط لرصيد الفريق!
-"""
-            send_telegram_message(msg)
-            st.success("🎉 تم حفظ المهمة وتوزيع النقاط على الفريق وإرسال إشعار للإدارة!")
-            st.balloons()
+        st.markdown("<br>", unsafe_allow_html=True)
+        remember_me = st.checkbox("💾 Remember Me (Auto-Save Login)")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Login 🚀", type="primary", use_container_width=True):
+            if not emp_name or not emp_id:
+                st.error("⚠️ Please enter your Name and Employee ID.")
+            elif role == "Manager" and password != "admin123": # كلمة سر المدير هنا
+                st.error("❌ Incorrect Manager Password!")
+            else:
+                st.session_state.user_info = {
+                    "name": emp_name,
+                    "id": emp_id,
+                    "branch": branch,
+                    "dept": department,
+                    "role": role
+                }
+                st.session_state.logged_in = True
+                st.success("Login Successful!")
+                time.sleep(0.5)
+                st.rerun()
 
 # ==========================================
-# التاب الثاني: نظام الفزعة
+# 3. MAIN APPLICATION (النظام الرئيسي)
 # ==========================================
-with tab2:
-    st.header("🚨 نداء فزعة طارئ (SOS Backup)")
-    st.markdown("تحتاج مساعدة في رفع قطعة ثقيلة؟ أو واجهتك مشكلة معقدة؟ اطلب الفزعة من زملائك!")
+else:
+    # User info variables for easy access
+    u_name = st.session_state.user_info['name']
+    u_branch = st.session_state.user_info['branch']
+    u_dept = st.session_state.user_info['dept']
+    u_role = st.session_state.user_info['role']
     
-    sos_tech = st.selectbox("من أنت؟", technicians, key="sos_tech")
-    sos_location = st.selectbox("الموقع الحالي:", machines, key="sos_loc")
-    sos_reason = st.text_input("وش المشكلة وتحتاج مين؟ (مثال: أحتاج شباب نرفع ماطور ثقيل)")
-    
-    if st.button("🚨 أرسل نداء الفزعة للقروب 🚨", type="primary", use_container_width=True):
-        sos_msg = f"""
-🚨 *نـــداء فـــزعـــة طـــارئ!* 🚨
-━━━━━━━━━━━━━━
-👨‍🔧 *طالب الفزعة:* {sos_tech}
-📍 *الموقع:* {sos_location}
-⚠️ *السبب:* {sos_reason}
+    # Sidebar Info
+    st.sidebar.title("👤 User Profile")
+    st.sidebar.write(f"**Name:** {u_name}")
+    st.sidebar.write(f"**Branch:** {u_branch}")
+    st.sidebar.write(f"**Department:** {u_dept}")
+    st.sidebar.write(f"**Role:** {u_role}")
+    if st.sidebar.button("Logout 🚪"):
+        st.session_state.logged_in = False
+        st.rerun()
 
-🏃‍♂️ *يا شباب اللي قريب منه يتوجه له فوراً!*
-"""
-        send_telegram_message(sos_msg)
-        st.error("تم إطلاق صفارة الإنذار في قروب التليجرام! زملاؤك في الطريق إليك 🏃‍♂️💨")
-
-# ==========================================
-# التاب الثالث: تحدي البيت ستوب
-# ==========================================
-with tab3:
-    st.header("🏎️ تحدي البيت ستوب (F1 Pit Stop)")
-    st.markdown("تحدي أسرع وقت لتغيير الرولات! هل تستطيع كسر الرقم القياسي؟")
+    st.title(f"⚙️ MMC Smart Maintenance - {u_branch} Branch")
+    st.markdown("---")
     
-    pit_tech = st.selectbox("الفني المتحدي:", technicians, key="pit_tech")
-    pit_machine = st.selectbox("الماكينة:", ["طاحونة أ", "طاحونة ب"], key="pit_mac")
+    # Machine List
+    machines = ["Mill A", "Mill B", "Packaging Belt", "Main Sifter", "Air Compressor"]
     
-    if not st.session_state.pitstop_active:
-        if st.button("🏁 ابدأ التحدي (Start Timer)", type="primary"):
-            st.session_state.pitstop_active = True
-            st.session_state.start_time = time.time()
-            st.rerun()
+    # Establish Tabs based on Role
+    if u_role == "Manager":
+        tabs = st.tabs(["📊 Dashboard", "🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Maintenance Reels"])
     else:
-        st.warning("⏱️ التحدي جاري الآن... أسرع!")
-        if st.button("🛑 تم الانتهاء من تركيب الرول (Stop Timer)"):
-            end_time = time.time()
-            elapsed_seconds = int(end_time - st.session_state.start_time)
-            mins, secs = divmod(elapsed_seconds, 60)
-            
-            st.session_state.pitstop_active = False
-            st.success(f"🎉 تم التغيير في: {mins} دقيقة و {secs} ثانية!")
-            
-            msg = f"🏎️ *تحدي البيت ستوب!*\nالبطل {pit_tech} قام بتغيير رول {pit_machine} في زمن قياسي: *{mins} دقيقة و {secs} ثانية!* 🏁"
-            send_telegram_message(msg)
-            st.balloons()
-            st.session_state.start_time = None
-            st.rerun()
+        tabs = st.tabs(["🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Maintenance Reels"])
+        
+    tab_logging = tabs[1] if u_role == "Manager" else tabs[0]
+    tab_sos = tabs[2] if u_role == "Manager" else tabs[1]
+    tab_pitstop = tabs[3] if u_role == "Manager" else tabs[2]
+    tab_reels = tabs[4] if u_role == "Manager" else tabs[3]
 
-# ==========================================
-# التاب الرابع: تيك توك الصيانة
-# ==========================================
-with tab4:
-    st.header("🎬 تيك توك الصيانة (Maintenance Reels)")
-    st.markdown("شارك زملائك إبداعك، خبرتك، أو لقطة الأسبوع! (الفيديو يجب أن يكون قصير)")
-    
-    uploader_tech = st.selectbox("من الناشر؟", technicians + ["المدير العام"], key="tik_tech")
-    video_title = st.text_input("عنوان المقطع:")
-    video_file = st.file_uploader("ارفع الفيديو (MP4/MOV)", type=['mp4', 'mov'])
-    
-    if video_file is not None:
-        st.video(video_file)
-        if st.button("🚀 نشر المقطع للجميع"):
-            st.success(f"تم نشر مقطع '{video_title}' بواسطة {uploader_tech} بنجاح!")
-            msg = f"🎬 *مقطع جديد في تيك توك الصيانة!*\nنشر {uploader_tech} مقطعاً بعنوان: {video_title}.. ادخلوا النظام لمشاهدته!"
-            send_telegram_message(msg)
+    # ------------------------------------------
+    # TAB: TASK LOGGING & LOTO
+    # ------------------------------------------
+    with tab_logging:
+        st.header("🛠️ Log New Maintenance Task")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            task_type = st.radio("Task Type:", ["WRO (Emergency)", "PRO (Preventive)"])
+            machine_name = st.selectbox("Target Machine:", machines)
+            
+        with col2:
+            issue_desc = st.text_area("Task Description & Work Done:")
+            co_op_techs = st.text_input("Co-op Technicians (Leave blank if none):", placeholder="e.g., Ahmed (Electrical)")
+            
+        st.markdown("### 🔒 Mandatory Safety Checkpoint (LOTO)")
+        st.info("⚠️ You cannot close this task without capturing the LOTO Lockout on the machine.")
+        
+        loto_photo = st.camera_input("Capture LOTO Lock 📸")
+        
+        if loto_photo is not None:
+            if st.button("✅ Close Task & Claim Points", use_container_width=True):
+                team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
+                
+                msg = f"""
+✅ *Task Completed Successfully ({task_type[:3]})*
+━━━━━━━━━━━━━━
+🏢 *Branch:* {u_branch}
+⚙️ *Machine:* {machine_name}
+👨‍🔧 *Team:* {team_str} ({u_dept})
+📝 *Description:* {issue_desc}
+🔒 *Safety:* LOTO Verified visually.
+"""
+                send_telegram_message(msg)
+                st.success("🎉 Task saved! Notifications sent to branch management.")
+                st.balloons()
 
-# ==========================================
-# التاب الخامس: لوحة الإدارة
-# ==========================================
-with tab5:
-    st.header("📊 لوحة الإدارة المبسطة")
-    st.markdown("هنا تظهر إحصائيات المصنع (مثال تجريبي):")
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("إجمالي البلاغات اليوم", "12", "+2")
-    col2.metric("أسرع Pit Stop", "14:30 دقيقة", "-1:20", delta_color="inverse")
-    col3.metric("معدل السلامة (LOTO)", "100%", "مثالي")
-    
-    st.markdown("### 🏆 لوحة الشرف (Top Technicians)")
-    df = pd.DataFrame({
-        "الفني": ["أحمد الدوسري", "سعد القحطاني", "خالد عبدالله"],
-        "النقاط": [450, 320, 290],
-        "الأوسمة": ["👑 ملك الميكانيكا", "🦸‍♂️ راعي الفزعات", "⚡ البرق"]
-    })
-    st.dataframe(df, use_container_width=True)
+    # ------------------------------------------
+    # TAB: SOS BACKUP
+    # ------------------------------------------
+    with tab_sos:
+        st.header("🚨 Emergency SOS Backup")
+        st.markdown("Need help with a heavy lift or complex issue? Call your branch team!")
+        
+        sos_location = st.selectbox("Where are you?", machines)
+        sos_reason = st.text_input("What do you need?", placeholder="e.g., Need 2 guys to lift a motor")
+        
+        if st.button("🚨 Broadcast SOS to Branch 🚨", type="primary", use_container_width=True):
+            sos_msg = f"""
+🚨 *URGENT SOS BACKUP NEEDED!* 🚨
+━━━━━━━━━━━━━━
+🏢 *Branch:* {u_branch}
+👨‍🔧 *Requested by:* {u_name}
+📍 *Location:* {sos_location}
+⚠️ *Reason:* {sos_reason}
+
+🏃‍♂️ *Available team members, please assist immediately!*
+"""
+            send_telegram_message(sos_msg)
+            st.error("🚨 SOS Broadcast sent to your branch Telegram group!")
+
+    # ------------------------------------------
+    # TAB: PIT STOP CHALLENGE
+    # ------------------------------------------
+    with tab_pitstop:
+        st.header("🏎️ F1 Pit Stop Challenge (Roll Replacement)")
+        
+        pit_machine = st.selectbox("Machine for Roll Replacement:", ["Mill A", "Mill B"])
+        
+        if not st.session_state.pitstop_active:
+            if st.button("🏁 Start Timer", type="primary"):
+                st.session_state.pitstop_active = True
+                st.session_state.start_time = time.time()
+                st.rerun()
+        else:
+            st.warning("⏱️ Challenge is LIVE! Work safely and quickly.")
+            if st.button("🛑 Roll Replaced (Stop Timer)"):
+                end_time = time.time()
+                elapsed_seconds = int(end_time - st.session_state.start_time)
+                mins, secs = divmod(elapsed_seconds, 60)
+                
+                st.session_state.pitstop_active = False
+                st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
+                
+                msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n{u_name} replaced a roll on {pit_machine} in *{mins}m {secs}s*! 🏁"
+                send_telegram_message(msg)
+                st.balloons()
+                st.session_state.start_time = None
+                st.rerun()
+
+    # ------------------------------------------
+    # TAB: MAINTENANCE REELS (TIKTOK)
+    # ------------------------------------------
+    with tab_reels:
+        st.header("🎬 Maintenance Reels")
+        st.markdown("Share your expertise, a quick fix, or a safety tip with the team.")
+        
+        # Name is automatically pulled from login (no selectbox)
+        st.info(f"Posting as: **{u_name}** ({u_role})")
+        
+        video_title = st.text_input("Reel Title:")
+        video_file = st.file_uploader("Upload Video (MP4)", type=['mp4'])
+        
+        if video_file is not None:
+            st.video(video_file)
+            if st.button("🚀 Publish Reel"):
+                st.success(f"Reel '{video_title}' published successfully by {u_name}!")
+                msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
+                send_telegram_message(msg)
+
+    # ------------------------------------------
+    # TAB: MANAGER DASHBOARD (Managers Only)
+    # ------------------------------------------
+    if u_role == "Manager":
+        with tabs[0]:
+            st.header(f"📊 {u_branch} Branch - Manager Dashboard")
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Today's WRO Reports", "5", "-2")
+            col2.metric("LOTO Compliance", "100%", "Perfect")
+            col3.metric("Avg Pit Stop Time", "18m 30s", "-1m 10s")
+            
+            st.markdown("### 🏆 Top Technicians in Branch")
+            df = pd.DataFrame({
+                "Technician": ["Ahmed", "Khalid", "Yasser"],
+                "Points": [450, 320, 290],
+                "Title": ["👑 Mechanical King", "🦸‍♂️ SOS Hero", "⚡ The Flash"]
+            })
+            st.dataframe(df, use_container_width=True)
