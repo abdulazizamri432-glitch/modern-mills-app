@@ -7,9 +7,10 @@ import requests
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layout="wide")
 
 # ==========================================
-# ⚠️ إعدادات التليجرام (حط توكن البوت حقك هنا فقط)
+# ⚠️ إعدادات التليجرام 
 # ==========================================
-TELEGRAM_BOT_TOKEN = "ضع_التوكن_هنا"
+# امسح الكلمة اللي تحت وحط التوكن حقك بين علامات التنصيص
+TELEGRAM_BOT_TOKEN = "هنا_تحط_التوكن_حقك"
 
 # أرقام القروبات اللي أرسلتها جاهزة ومربوطة
 TELEGRAM_CHATS = {
@@ -27,7 +28,7 @@ BRANCH_PASSWORDS = {
 
 def send_telegram_message(text, branch):
     """إرسال الإشعار مع نظام كشف الأخطاء الذكي"""
-    if TELEGRAM_BOT_TOKEN == "ضع_التوكن_هنا" or not TELEGRAM_BOT_TOKEN:
+    if TELEGRAM_BOT_TOKEN == "هنا_تحط_التوكن_حقك" or not TELEGRAM_BOT_TOKEN:
         st.error("🚨 تنبيه: نسيت تحط التوكن حق البوت في الكود (السطر 12)!")
         return
 
@@ -158,180 +159,3 @@ else:
     st.markdown("---")
     
     # الأقسام (Tabs) حسب المنصب
-    if u_role == "Manager":
-        tabs = st.tabs(["📊 Dashboard", "🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-    else:
-        tabs = st.tabs(["🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-        
-    tab_logging = tabs[1] if u_role == "Manager" else tabs[0]
-    tab_sos = tabs[2] if u_role == "Manager" else tabs[1]
-    tab_pitstop = tabs[3] if u_role == "Manager" else tabs[2]
-    tab_reels = tabs[4] if u_role == "Manager" else tabs[3]
-
-    # ------------------------------------------
-    # TAB 1: TASK LOGGING + المحقق الذكي
-    # ------------------------------------------
-    with tab_logging:
-        st.subheader("📝 Log New Maintenance Task")
-        
-        container1 = st.container(border=True)
-        with container1:
-            col1, col2 = st.columns(2)
-            with col1:
-                task_type = st.radio("Task Type:", ["WRO (Emergency 🔴)", "PRO (Preventive 🟢)"])
-                machine_name = st.text_input("📍 Target Machine & Location:", placeholder="e.g., Mill A - 2nd Floor")
-                
-                # ميزة الذكاء الاصطناعي للمساعدة في التشخيص
-                if st.button("🔮 AI Root Cause Analyzer", type="secondary"):
-                    if not machine_name:
-                        st.warning("Type the machine name first so AI can analyze it!")
-                    else:
-                        with st.spinner("Analyzing machine history and data..."):
-                            time.sleep(1.5)
-                            ai_causes = [
-                                "1. Worn out bearings due to lack of lubrication.",
-                                "2. Belt misalignment causing extreme friction.",
-                                "3. Sensor malfunction sending false signals."
-                            ]
-                            st.success("🤖 **AI Diagnosis Complete! Possible causes:**")
-                            for cause in ai_causes:
-                                st.write(f"- {cause}")
-                
-            with col2:
-                issue_desc = st.text_area("📝 Description & Work Done:", placeholder="What was the issue and how did you fix it?", height=150)
-                co_op_techs = st.text_input("👥 Co-op Technicians (If any):", placeholder="e.g., Khalid (Electrical)")
-                
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        container2 = st.container(border=True)
-        with container2:
-            st.markdown("### 🔒 Mandatory Safety Checkpoint (LOTO)")
-            st.info("⚠️ You cannot close this task without capturing the LOTO Lockout on the machine.")
-            loto_photo = st.camera_input("Capture LOTO Lock 📸")
-            
-            if loto_photo is not None:
-                if not machine_name or not issue_desc:
-                    st.warning("Please fill in the Machine Location and Description first.")
-                else:
-                    if st.button("✅ Close Task & Claim Points", type="primary", use_container_width=True):
-                        team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
-                        dept_str = f"({u_dept})" if u_role == "Technician" else "(Management)"
-                        msg = f"""
-✅ *Task Completed Successfully ({task_type[:3]})*
-━━━━━━━━━━━━━━
-🏢 *Branch:* {u_branch}
-📍 *Machine/Loc:* {machine_name}
-👨‍🔧 *Team:* {team_str} {dept_str}
-📝 *Details:* {issue_desc}
-🔒 *Safety:* LOTO Verified 📸
-"""
-                        send_telegram_message(msg, u_branch) 
-                        st.success("🎉 Task saved! Notifications sent to branch management.")
-                        st.balloons()
-
-    # ------------------------------------------
-    # TAB 2: SOS BACKUP
-    # ------------------------------------------
-    with tab_sos:
-        st.subheader("🚨 Emergency SOS Backup")
-        
-        container3 = st.container(border=True)
-        with container3:
-            sos_location = st.text_input("📍 Where exactly are you?", placeholder="e.g., Packaging Area, Line 3")
-            sos_reason = st.text_input("⚠️ What do you need?", placeholder="e.g., Need 2 guys to lift a heavy motor")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚨 Broadcast SOS to Branch 🚨", type="primary", use_container_width=True):
-                if not sos_location or not sos_reason:
-                    st.warning("Please specify your location and what you need!")
-                else:
-                    sos_msg = f"""
-🚨 *URGENT SOS BACKUP NEEDED!* 🚨
-━━━━━━━━━━━━━━
-🏢 *Branch:* {u_branch}
-👨‍🔧 *Requested by:* {u_name}
-📍 *Location:* {sos_location}
-⚠️ *Reason:* {sos_reason}
-
-🏃‍♂️ *Available team members, please assist immediately!*
-"""
-                    send_telegram_message(sos_msg, u_branch)
-                    st.error("🚨 SOS Broadcast sent! Hold tight, the team is on the way.")
-
-    # ------------------------------------------
-    # TAB 3: PIT STOP CHALLENGE
-    # ------------------------------------------
-    with tab_pitstop:
-        st.subheader("🏎️ F1 Pit Stop Challenge")
-        st.markdown("Record your fastest roll replacement time safely!")
-        
-        container4 = st.container(border=True)
-        with container4:
-            pit_machine = st.text_input("⚙️ Machine / Roll Details:", placeholder="e.g., Mill B - Roll 4A")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if not st.session_state.pitstop_active:
-                if st.button("🏁 Start Timer", type="primary", use_container_width=True):
-                    if not pit_machine:
-                        st.warning("Please specify the Roll/Machine name first.")
-                    else:
-                        st.session_state.pitstop_active = True
-                        st.session_state.start_time = time.time()
-                        st.rerun()
-            else:
-                st.warning("⏱️ Challenge is LIVE! Work safely and quickly.")
-                if st.button("🛑 Roll Replaced (Stop Timer)", use_container_width=True):
-                    end_time = time.time()
-                    elapsed_seconds = int(end_time - st.session_state.start_time)
-                    mins, secs = divmod(elapsed_seconds, 60)
-                    
-                    st.session_state.pitstop_active = False
-                    st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
-                    
-                    msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n**{u_name}** replaced [{pit_machine}] in *{mins}m {secs}s*! 🏁"
-                    send_telegram_message(msg, u_branch)
-                    st.balloons()
-                    st.session_state.start_time = None
-                    st.rerun()
-
-    # ------------------------------------------
-    # TAB 4: MAINTENANCE REELS
-    # ------------------------------------------
-    with tab_reels:
-        st.subheader("🎬 Maintenance Reels")
-        st.info(f"Posting as: **{u_name}** ({u_role})")
-        
-        container5 = st.container(border=True)
-        with container5:
-            video_title = st.text_input("📌 Reel Title:", placeholder="e.g., How to calibrate the new sensor")
-            video_file = st.file_uploader("📤 Upload Video (MP4)", type=['mp4'])
-            
-            if video_file is not None:
-                st.video(video_file)
-                if st.button("🚀 Publish Reel", type="primary", use_container_width=True):
-                    if not video_title:
-                        st.warning("Please add a title for your reel.")
-                    else:
-                        st.success(f"Reel '{video_title}' published successfully!")
-                        msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
-                        send_telegram_message(msg, u_branch)
-
-    # ------------------------------------------
-    # TAB 5: MANAGER DASHBOARD
-    # ------------------------------------------
-    if u_role == "Manager":
-        with tabs[0]:
-            st.subheader(f"📊 {u_branch} - Manager Dashboard")
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Today's WRO Reports", "5", "-2")
-            col2.metric("LOTO Compliance", "100%", "Perfect")
-            col3.metric("Avg Pit Stop Time", "18m 30s", "-1m 10s")
-            
-            st.markdown("### 🏆 Top Technicians in Branch")
-            df = pd.DataFrame({
-                "Technician": ["Ahmed", "Khalid", "Yasser"],
-                "Points": [450, 320, 290],
-                "Title": ["👑 Mechanical King", "🦸‍♂️ SOS Hero", "⚡ The Flash"]
-            })
-            st.dataframe(df, use_container_width=True)
