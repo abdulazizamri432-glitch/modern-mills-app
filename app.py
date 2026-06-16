@@ -3,6 +3,7 @@ import pandas as pd
 import time
 import requests
 import numpy as np
+import random
 
 # --- إعدادات الصفحة ---
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
@@ -42,78 +43,26 @@ def send_telegram_message(text, branch):
         pass
 
 # ==========================================
-# 🎨 التصميم الخرافي VIP (Advanced CSS)
+# 🎨 لمسات بصرية بسيطة (بدون تغيير لون الخلفية الأساسي)
 # ==========================================
 st.markdown("""
 <style>
-    /* تغيير خلفية الموقع بالكامل لتكون مريحة للعين */
-    .stApp {
-        background-color: #F4F6F9;
-    }
-    
-    /* العناوين المتدرجة الخرافية */
+    /* العناوين المتدرجة */
     .gradient-text {
-        background: linear-gradient(90deg, #1CB5E0 0%, #000851 100%);
+        background: linear-gradient(90deg, #3498db 0%, #2ecc71 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 3.5em !important;
-        font-weight: 900 !important;
+        font-size: 3em !important;
+        font-weight: bold !important;
         text-align: center;
-        margin-bottom: 0px;
     }
-    .sub-gradient {
-        text-align: center;
-        color: #7F8C8D;
-        font-size: 1.2em;
-        margin-top: -10px;
-        margin-bottom: 30px;
-    }
-
-    /* تجميل الأزرار العامة */
+    /* تجميل الأزرار بشكل خفيف */
     .stButton>button {
-        background: linear-gradient(135deg, #2980B9, #2C3E50);
-        color: white;
-        border-radius: 12px;
-        border: none;
-        padding: 10px 24px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        font-weight: bold;
+        border-radius: 8px;
+        transition: 0.3s;
     }
     .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
-        background: linear-gradient(135deg, #2C3E50, #2980B9);
-    }
-
-    /* تجميل زر الطوارئ والفزعة (أحمر) */
-    button[kind="primary"] {
-        background: linear-gradient(135deg, #E74C3C, #900C3F) !important;
-    }
-    button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #900C3F, #E74C3C) !important;
-    }
-
-    /* كروت الإحصائيات للمدير */
-    div[data-testid="metric-container"] {
-        background-color: #FFFFFF;
-        border-left: 6px solid #2980B9;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-        transition: transform 0.3s;
-    }
-    div[data-testid="metric-container"]:hover {
-        transform: translateY(-5px);
-    }
-
-    /* الصناديق والحاويات */
-    div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: #FFFFFF;
-        border-radius: 20px !important;
-        border: 1px solid #EAECEE !important;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.03);
-        padding: 20px;
+        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -129,14 +78,16 @@ if 'pitstop_active' not in st.session_state:
     st.session_state.pitstop_active = False
 if 'start_time' not in st.session_state:
     st.session_state.start_time = None
+if 'user_points' not in st.session_state:
+    st.session_state.user_points = random.randint(150, 450) # توليد نقاط عشوائية كبداية
 
 # ==========================================
-# 1. SPLASH SCREEN (شاشة التحميل الفخمة)
+# 1. SPLASH SCREEN
 # ==========================================
 if not st.session_state.splash_done:
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     st.markdown("<div class='gradient-text'>⚙️ MMC Smart System</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-gradient'>Modern Mills Company - Premium Edition</div>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: gray;'>Secure Environment Loading...</h4>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -148,14 +99,14 @@ if not st.session_state.splash_done:
     st.rerun()
 
 # ==========================================
-# 2. LOGIN SYSTEM (تسجيل الدخول الأنيق)
+# 2. LOGIN SYSTEM
 # ==========================================
 elif not st.session_state.logged_in:
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.container(border=True):
-            st.markdown("<h2 style='text-align: center; color: #2C3E50;'>🔒 Secure Login</h2>", unsafe_allow_html=True)
+            st.title("🔒 System Login")
             st.markdown("---")
             
             emp_name = st.text_input("👤 Full Name", placeholder="e.g., Ahmed Al-Dawsari")
@@ -174,7 +125,7 @@ elif not st.session_state.logged_in:
                     password = st.text_input("🛡️ Manager Password", type="password")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Authenticate & Enter 🚀", type="primary", use_container_width=True):
+            if st.button("Login 🚀", type="primary", use_container_width=True):
                 if not emp_name or not emp_id:
                     st.error("⚠️ Please enter your Full Name and Employee ID.")
                 elif role == "Manager" and password != BRANCH_PASSWORDS.get(branch): 
@@ -185,47 +136,47 @@ elif not st.session_state.logged_in:
                     st.rerun()
 
 # ==========================================
-# 3. MAIN APPLICATION (النظام الرئيسي)
+# 3. MAIN APPLICATION
 # ==========================================
 else:
     u_name = st.session_state.user_info['name']
     u_branch = st.session_state.user_info['branch']
     u_dept = st.session_state.user_info['dept']
     u_role = st.session_state.user_info['role']
+    u_points = st.session_state.user_points
     
-    # --- Sidebar Styling ---
-    st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2043/2043085.png", width=80) # أيقونة مصنع جميلة
+    # تحديد الرتبة بناءً على النقاط
+    if u_points > 400: rank = "🏆 Master Tech"
+    elif u_points > 200: rank = "⚡ Senior Tech"
+    else: rank = "🔧 Specialist"
+
+    # --- Sidebar ---
     st.sidebar.markdown(f"## 🏢 {u_branch}")
     st.sidebar.markdown("---")
     st.sidebar.write(f"**👤 Name:** {u_name}")
     st.sidebar.write(f"**🔑 Role:** {u_role}")
     if u_role == "Technician":
          st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
+         st.sidebar.markdown("---")
+         st.sidebar.write(f"**⭐ Points:** {u_points}")
+         st.sidebar.write(f"**🏅 Rank:** {rank}")
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout 🚪", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
-    # --- Header ---
-    st.markdown(f"<h1 style='color: #2C3E50;'>Welcome back, {u_name}! 👋</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color: gray; font-size: 18px;'>{u_role} Workspace | {u_branch} Branch</p>", unsafe_allow_html=True)
+    # --- Header & Branch Health ---
+    st.title(f"Welcome back, {u_name}! 👋")
+    st.progress(0.92, text="🟢 Branch Health Score: 92% (Optimal)")
+    st.markdown("---")
     
     # --- Tabs Setup ---
     if u_role == "Manager":
         tabs = st.tabs(["📊 Dashboard & Passport", "📝 Task Logging", "🤝 Shift Handover", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-        tab_dash = tabs[0]
-        tab_logging = tabs[1]
-        tab_shift = tabs[2]
-        tab_sos = tabs[3]
-        tab_pitstop = tabs[4]
-        tab_reels = tabs[5]
+        tab_dash, tab_logging, tab_shift, tab_sos, tab_pitstop, tab_reels = tabs
     else:
         tabs = st.tabs(["📝 Task Logging", "🤝 Shift Handover", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-        tab_logging = tabs[0]
-        tab_shift = tabs[1]
-        tab_sos = tabs[2]
-        tab_pitstop = tabs[3]
-        tab_reels = tabs[4]
+        tab_logging, tab_shift, tab_sos, tab_pitstop, tab_reels = tabs
 
     # ------------------------------------------
     # TAB: TASK LOGGING 
@@ -248,30 +199,44 @@ else:
                 spare_parts = st.text_input("🛒 Spare Parts Used (Optional):", placeholder="e.g., Belt size 50")
                 
         with st.container(border=True):
+            st.markdown("#### ✅ Mandatory HSE Checklist")
+            st.caption("Please confirm you followed safety protocols before uploading LOTO.")
+            col_x, col_y, col_z = st.columns(3)
+            with col_x: ppe_helmet = st.checkbox("👷‍♂️ Helmet & Glasses")
+            with col_y: ppe_gloves = st.checkbox("🧤 Safety Gloves")
+            with col_z: ppe_tools = st.checkbox("🔧 Right Tools Used")
+            
+            st.markdown("#### 🔒 LOTO Checkpoint & Audio")
             col_a, col_b = st.columns(2)
             with col_a:
-                st.markdown("#### 🎙️ Audio Note (Optional)")
-                audio_note = st.audio_input("Record Voice Note") 
+                audio_note = st.audio_input("🎙️ Record Voice Note (Optional)") 
             with col_b:
-                st.markdown("#### 🔒 LOTO Checkpoint")
-                loto_photo = st.camera_input("Capture LOTO Lock 📸")
+                loto_photo = st.camera_input("📸 Capture LOTO Lock")
             
         if loto_photo is not None:
-            if st.button("✅ Submit Task to System", type="primary", use_container_width=True):
-                parts_msg = f"\n🛒 <b>Parts Used:</b> {spare_parts}" if spare_parts else ""
-                audio_msg = "\n🎙️ <i>Audio note attached in system.</i>" if audio_note else ""
-                
-                msg = f"""
+            if not (ppe_helmet and ppe_gloves and ppe_tools):
+                st.error("⚠️ You must check all safety (HSE) boxes before submitting!")
+            else:
+                if st.button("✅ Submit Task (+50 Points)", type="primary", use_container_width=True):
+                    st.session_state.user_points += 50 # زيادة النقاط!
+                    
+                    parts_msg = f"\n🛒 <b>Parts Used:</b> {spare_parts}" if spare_parts else ""
+                    audio_msg = "\n🎙️ <i>Audio note attached in system.</i>" if audio_note else ""
+                    
+                    msg = f"""
 ✅ <b>Task Completed ({task_type[:3]})</b>
 ━━━━━━━━━━━━━━
 🏢 <b>Branch:</b> {u_branch}
 📍 <b>Machine:</b> {machine_name}
-👨‍🔧 <b>Tech:</b> {u_name}{parts_msg}{audio_msg}
-🔒 <b>Safety:</b> LOTO Verified 📸
+👨‍🔧 <b>Tech:</b> {u_name} (Points: {st.session_state.user_points})
+✅ <b>Safety:</b> HSE Checklist Confirmed 100%{parts_msg}{audio_msg}
+🔒 <b>LOTO:</b> Verified 📸
 """
-                send_telegram_message(msg, u_branch)
-                st.success("🎉 Task logged successfully!")
-                st.balloons()
+                    send_telegram_message(msg, u_branch)
+                    st.success("🎉 Task logged successfully! You earned 50 Points.")
+                    st.balloons()
+                    time.sleep(2)
+                    st.rerun()
 
     # ------------------------------------------
     # TAB: SHIFT HANDOVER
@@ -304,7 +269,6 @@ else:
         st.markdown("### 🏎️ F1 Pit Stop Challenge")
         with st.container(border=True):
             pit_mac = st.text_input("⚙️ Machine/Roll Details:")
-            st.markdown("<br>", unsafe_allow_html=True)
             if not st.session_state.pitstop_active:
                 if st.button("🏁 Start Timer"):
                     st.session_state.pitstop_active = True
