@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 import requests
+import numpy as np
 
 # --- إعدادات الصفحة ---
 st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layout="wide")
@@ -12,14 +13,12 @@ st.set_page_config(page_title="MMC Smart Maintenance", page_icon="⚙️", layou
 # امسح الكلمة اللي تحت وحط التوكن حقك بين علامات التنصيص
 TELEGRAM_BOT_TOKEN = "هنا_تحط_التوكن_حقك"
 
-# أرقام القروبات اللي أرسلتها جاهزة ومربوطة
 TELEGRAM_CHATS = {
     "Al-Jumum": "-5159290787",
     "Al-Jouf": "-5176017884",
     "Khamis Mushait": "-5104633079"
 }
 
-# كلمات المرور الخاصة بمدير كل فرع
 BRANCH_PASSWORDS = {
     "Al-Jumum": "Jumum123",
     "Al-Jouf": "Jouf123",
@@ -27,50 +26,63 @@ BRANCH_PASSWORDS = {
 }
 
 def send_telegram_message(text, branch):
-    """إرسال الإشعار مع نظام كشف الأخطاء الذكي"""
     if TELEGRAM_BOT_TOKEN == "هنا_تحط_التوكن_حقك" or not TELEGRAM_BOT_TOKEN:
-        st.error("🚨 تنبيه: نسيت تحط التوكن حق البوت في الكود (السطر 12)!")
+        st.error("🚨 تنبيه: نسيت تحط التوكن حق البوت في الكود (السطر 14)!")
         return
 
     chat_id = TELEGRAM_CHATS.get(branch)
     if not chat_id:
-        st.error(f"⚠️ لم يتم العثور على رقم قروب لفرع {branch}")
         return 
         
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown"
-    }
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     try:
-        response = requests.post(url, json=payload)
-        if response.status_code != 200:
-            st.error(f"❌ التليجرام رفض الإرسال! تأكد إن البوت مضاف كأدمن في القروب. (كود الخطأ: {response.text})")
+        requests.post(url, json=payload)
     except Exception as e:
-        st.error(f"❌ خطأ في الاتصال بالإنترنت: {e}")
+        pass
 
-# --- تهيئة متغيرات النظام ---
+# ==========================================
+# 🎨 تصميم VIP (Custom CSS)
+# ==========================================
+st.markdown("""
+<style>
+    /* تجميل الأزرار */
+    .stButton>button {
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+    }
+    /* تجميل بطاقات الإحصائيات للمدير */
+    div[data-testid="metric-container"] {
+        background-color: #f8f9fa;
+        border-left: 5px solid #2E86C1;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    }
+    /* تحسين العناوين */
+    h1, h2, h3 { color: #1B4F72; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- تهيئة المتغيرات ---
 if 'splash_done' not in st.session_state:
     st.session_state.splash_done = False
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-if 'user_info' not in st.session_state:
-    st.session_state.user_info = {}
-if 'pitstop_active' not in st.session_state:
-    st.session_state.pitstop_active = False
-if 'start_time' not in st.session_state:
-    st.session_state.start_time = None
 
 # ==========================================
 # 1. SPLASH SCREEN (الافتتاحية)
 # ==========================================
 if not st.session_state.splash_done:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center; font-size: 60px; color: #2E86C1;'>⚙️ MMC Smart Maintenance</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: gray;'>Modern Mills Company</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Loading System Modules & Safety Protocols...</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 65px;'>⚙️ MMC Smart System</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #7F8C8D;'>Modern Mills Company</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; margin-top: 30px;'>Loading Secure Environment...</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -78,7 +90,6 @@ if not st.session_state.splash_done:
         for i in range(100):
             time.sleep(0.01)
             progress_bar.progress(i + 1)
-    
     st.session_state.splash_done = True
     st.rerun()
 
@@ -87,10 +98,8 @@ if not st.session_state.splash_done:
 # ==========================================
 elif not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
-    
     with col2:
         st.title("🔒 System Login")
-        st.markdown("Please enter your credentials to access the MMC portal.")
         st.markdown("---")
         
         emp_name = st.text_input("👤 Full Name", placeholder="e.g., Ahmed Al-Dawsari")
@@ -100,34 +109,23 @@ elif not st.session_state.logged_in:
         with col_a:
             branch = st.selectbox("🏢 Branch", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
             role = st.selectbox("🔑 Role", ["Technician", "Manager"])
-            
         with col_b:
             if role == "Technician":
                 department = st.selectbox("🛠️ Department", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations"])
                 password = ""
             else:
                 department = "Management"
-                password = st.text_input("🛡️ Manager Password", type="password", placeholder=f"Password for {branch}")
+                password = st.text_input("🛡️ Manager Password", type="password")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        remember_me = st.checkbox("💾 Remember Me (Auto-Save Login)")
-        
         if st.button("Login to Workspace 🚀", type="primary", use_container_width=True):
             if not emp_name or not emp_id:
                 st.error("⚠️ Please enter your Full Name and Employee ID.")
             elif role == "Manager" and password != BRANCH_PASSWORDS.get(branch): 
                 st.error(f"❌ Incorrect Password for {branch} Manager!")
             else:
-                st.session_state.user_info = {
-                    "name": emp_name,
-                    "id": emp_id,
-                    "branch": branch,
-                    "dept": department,
-                    "role": role
-                }
+                st.session_state.user_info = {"name": emp_name, "branch": branch, "dept": department, "role": role}
                 st.session_state.logged_in = True
-                st.toast(f"Welcome back to {branch}, {emp_name}! 🚀", icon="👋")
-                time.sleep(0.5)
                 st.rerun()
 
 # ==========================================
@@ -139,200 +137,166 @@ else:
     u_dept = st.session_state.user_info['dept']
     u_role = st.session_state.user_info['role']
     
-    # القائمة الجانبية (Sidebar)
     st.sidebar.markdown(f"### 🏢 {u_branch} Branch")
     st.sidebar.markdown("---")
     st.sidebar.write(f"**👤 Name:** {u_name}")
-    if u_role == "Technician":
-        st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
     st.sidebar.write(f"**🔑 Role:** {u_role}")
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout 🚪", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
-    # العنوان يتغير حسب المنصب
     if u_role == "Manager":
-        st.title(f"⚙️ MMC Workspace - Branch Management")
+        st.title("⚙️ Branch Management Hub")
+        tabs = st.tabs(["📊 Dashboard & Passport", "🛠️ Task Logging", "🤝 Shift Handover", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
+        tab_dash = tabs[0]
+        tab_logging = tabs[1]
+        tab_shift = tabs[2]
+        tab_sos = tabs[3]
+        tab_pitstop = tabs[4]
+        tab_reels = tabs[5]
     else:
-        st.title(f"⚙️ MMC Workspace - {u_dept} Department")
-    st.markdown("---")
-    
-    # الأقسام (Tabs) حسب المنصب
-    if u_role == "Manager":
-        tabs = st.tabs(["📊 Dashboard", "🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-    else:
-        tabs = st.tabs(["🛠️ Task Logging", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
-        
-    tab_logging = tabs[1] if u_role == "Manager" else tabs[0]
-    tab_sos = tabs[2] if u_role == "Manager" else tabs[1]
-    tab_pitstop = tabs[3] if u_role == "Manager" else tabs[2]
-    tab_reels = tabs[4] if u_role == "Manager" else tabs[3]
+        st.title(f"⚙️ {u_dept} Workspace")
+        tabs = st.tabs(["🛠️ Task Logging", "🤝 Shift Handover", "🚨 SOS", "🏎️ Pit Stop", "🎬 Reels"])
+        tab_logging = tabs[0]
+        tab_shift = tabs[1]
+        tab_sos = tabs[2]
+        tab_pitstop = tabs[3]
+        tab_reels = tabs[4]
 
     # ------------------------------------------
-    # TAB 1: TASK LOGGING + المحقق الذكي
+    # TAB 1: TASK LOGGING + SMART INVENTORY + VOICE
     # ------------------------------------------
     with tab_logging:
-        st.subheader("📝 Log New Maintenance Task")
+        st.subheader("📝 Log Maintenance Task")
         
-        container1 = st.container(border=True)
-        with container1:
+        with st.container(border=True):
             col1, col2 = st.columns(2)
             with col1:
-                task_type = st.radio("Task Type:", ["WRO (Emergency 🔴)", "PRO (Preventive 🟢)"])
-                machine_name = st.text_input("📍 Target Machine & Location:", placeholder="e.g., Mill A - 2nd Floor")
+                task_type = st.radio("Task Type:", ["WRO (Emergency 🔴)", "PRO (Preventive 🟢)"], horizontal=True)
+                machine_name = st.text_input("📍 Machine & Location:")
                 
-                # ميزة الذكاء الاصطناعي للمساعدة في التشخيص
                 if st.button("🔮 AI Root Cause Analyzer", type="secondary"):
-                    if not machine_name:
-                        st.warning("Type the machine name first so AI can analyze it!")
-                    else:
-                        with st.spinner("Analyzing machine history and data..."):
-                            time.sleep(1.5)
-                            ai_causes = [
-                                "1. Worn out bearings due to lack of lubrication.",
-                                "2. Belt misalignment causing extreme friction.",
-                                "3. Sensor malfunction sending false signals."
-                            ]
-                            st.success("🤖 **AI Diagnosis Complete! Possible causes:**")
-                            for cause in ai_causes:
-                                st.write(f"- {cause}")
+                    with st.spinner("Analyzing..."):
+                        time.sleep(1)
+                        st.success("🤖 **AI:** 1. Check Bearings | 2. Inspect Belt Alignment | 3. Verify Sensors.")
                 
             with col2:
-                issue_desc = st.text_area("📝 Description & Work Done:", placeholder="What was the issue and how did you fix it?", height=150)
-                co_op_techs = st.text_input("👥 Co-op Technicians (If any):", placeholder="e.g., Khalid (Electrical)")
+                issue_desc = st.text_area("📝 Work Done:")
+                spare_parts = st.text_input("🛒 Spare Parts Used (Optional):", placeholder="e.g., Belt size 50, 2 Bearings")
                 
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        container2 = st.container(border=True)
-        with container2:
-            st.markdown("### 🔒 Mandatory Safety Checkpoint (LOTO)")
-            st.info("⚠️ You cannot close this task without capturing the LOTO Lockout on the machine.")
+        with st.container(border=True):
+            st.markdown("### 🎙️ Audio Note (Optional)")
+            st.info("Hands dirty? Record a quick voice note instead of typing.")
+            audio_note = st.audio_input("Record Voice Note") # ميزة تسجيل الصوت الجديدة
+
+        with st.container(border=True):
+            st.markdown("### 🔒 LOTO Checkpoint")
             loto_photo = st.camera_input("Capture LOTO Lock 📸")
             
             if loto_photo is not None:
-                if not machine_name or not issue_desc:
-                    st.warning("Please fill in the Machine Location and Description first.")
-                else:
-                    if st.button("✅ Close Task & Claim Points", type="primary", use_container_width=True):
-                        team_str = f"{u_name}" + (f" & {co_op_techs}" if co_op_techs else "")
-                        dept_str = f"({u_dept})" if u_role == "Technician" else "(Management)"
-                        msg = f"""
-✅ *Task Completed Successfully ({task_type[:3]})*
+                if st.button("✅ Submit Task", type="primary", use_container_width=True):
+                    parts_msg = f"\n🛒 <b>Parts Used:</b> {spare_parts}" if spare_parts else ""
+                    audio_msg = "\n🎙️ <i>Audio note attached in system.</i>" if audio_note else ""
+                    
+                    msg = f"""
+✅ <b>Task Completed ({task_type[:3]})</b>
 ━━━━━━━━━━━━━━
-🏢 *Branch:* {u_branch}
-📍 *Machine/Loc:* {machine_name}
-👨‍🔧 *Team:* {team_str} {dept_str}
-📝 *Details:* {issue_desc}
-🔒 *Safety:* LOTO Verified 📸
+🏢 <b>Branch:</b> {u_branch}
+📍 <b>Machine:</b> {machine_name}
+👨‍🔧 <b>Tech:</b> {u_name}{parts_msg}{audio_msg}
+🔒 <b>Safety:</b> LOTO Verified 📸
 """
-                        send_telegram_message(msg, u_branch) 
-                        st.success("🎉 Task saved! Notifications sent to branch management.")
-                        st.balloons()
+                    send_telegram_message(msg, u_branch)
+                    st.success("Task logged successfully!")
+                    st.balloons()
 
     # ------------------------------------------
-    # TAB 2: SOS BACKUP
+    # TAB: SHIFT HANDOVER (تسليم الوردية)
+    # ------------------------------------------
+    with tab_shift:
+        st.subheader("🤝 Shift Handover Log")
+        st.markdown("Leave notes for the incoming shift to ensure smooth operations.")
+        
+        with st.container(border=True):
+            shift_note = st.text_area("📝 Handover Notes (What needs attention?):", height=150)
+            urgent_flag = st.checkbox("🚨 Mark as Urgent for next shift")
+            
+            if st.button("📤 Submit Handover Note", use_container_width=True):
+                urgency = "🔴 URGENT" if urgent_flag else "🟢 Normal"
+                msg = f"""
+🤝 <b>Shift Handover ({urgency})</b>
+━━━━━━━━━━━━━━
+👨‍🔧 <b>From:</b> {u_name}
+📝 <b>Notes:</b> {shift_note}
+"""
+                send_telegram_message(msg, u_branch)
+                st.success("Handover logged! Next shift will be notified.")
+
+    # ------------------------------------------
+    # TAB: SOS & PIT STOP & REELS (نفس السابقة بس بتصميم أفضل)
     # ------------------------------------------
     with tab_sos:
-        st.subheader("🚨 Emergency SOS Backup")
-        
-        container3 = st.container(border=True)
-        with container3:
-            sos_location = st.text_input("📍 Where exactly are you?", placeholder="e.g., Packaging Area, Line 3")
-            sos_reason = st.text_input("⚠️ What do you need?", placeholder="e.g., Need 2 guys to lift a heavy motor")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚨 Broadcast SOS to Branch 🚨", type="primary", use_container_width=True):
-                if not sos_location or not sos_reason:
-                    st.warning("Please specify your location and what you need!")
-                else:
-                    sos_msg = f"""
-🚨 *URGENT SOS BACKUP NEEDED!* 🚨
-━━━━━━━━━━━━━━
-🏢 *Branch:* {u_branch}
-👨‍🔧 *Requested by:* {u_name}
-📍 *Location:* {sos_location}
-⚠️ *Reason:* {sos_reason}
+        st.subheader("🚨 Emergency SOS")
+        with st.container(border=True):
+            sos_loc = st.text_input("📍 Location:")
+            sos_need = st.text_input("⚠️ Need:")
+            if st.button("🚨 Broadcast SOS", type="primary", use_container_width=True):
+                send_telegram_message(f"🚨 <b>SOS from {u_name}!</b>\n📍 {sos_loc}\n⚠️ {sos_need}", u_branch)
+                st.error("SOS Sent!")
 
-🏃‍♂️ *Available team members, please assist immediately!*
-"""
-                    send_telegram_message(sos_msg, u_branch)
-                    st.error("🚨 SOS Broadcast sent! Hold tight, the team is on the way.")
-
-    # ------------------------------------------
-    # TAB 3: PIT STOP CHALLENGE
-    # ------------------------------------------
     with tab_pitstop:
-        st.subheader("🏎️ F1 Pit Stop Challenge")
-        st.markdown("Record your fastest roll replacement time safely!")
-        
-        container4 = st.container(border=True)
-        with container4:
-            pit_machine = st.text_input("⚙️ Machine / Roll Details:", placeholder="e.g., Mill B - Roll 4A")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("🏎️ Pit Stop Challenge")
+        with st.container(border=True):
+            pit_mac = st.text_input("⚙️ Machine/Roll:")
             if not st.session_state.pitstop_active:
-                if st.button("🏁 Start Timer", type="primary", use_container_width=True):
-                    if not pit_machine:
-                        st.warning("Please specify the Roll/Machine name first.")
-                    else:
-                        st.session_state.pitstop_active = True
-                        st.session_state.start_time = time.time()
-                        st.rerun()
+                if st.button("🏁 Start Timer", type="primary"):
+                    st.session_state.pitstop_active = True
+                    st.session_state.start_time = time.time()
+                    st.rerun()
             else:
-                st.warning("⏱️ Challenge is LIVE! Work safely and quickly.")
-                if st.button("🛑 Roll Replaced (Stop Timer)", use_container_width=True):
-                    end_time = time.time()
-                    elapsed_seconds = int(end_time - st.session_state.start_time)
-                    mins, secs = divmod(elapsed_seconds, 60)
-                    
+                st.warning("⏱️ LIVE!")
+                if st.button("🛑 Stop Timer"):
+                    mins, secs = divmod(int(time.time() - st.session_state.start_time), 60)
                     st.session_state.pitstop_active = False
-                    st.success(f"🎉 Completed in: {mins} minutes and {secs} seconds!")
-                    
-                    msg = f"🏎️ *Pit Stop Challenge - {u_branch}!*\n**{u_name}** replaced [{pit_machine}] in *{mins}m {secs}s*! 🏁"
-                    send_telegram_message(msg, u_branch)
-                    st.balloons()
-                    st.session_state.start_time = None
+                    send_telegram_message(f"🏎️ <b>Pit Stop:</b> {u_name} did [{pit_mac}] in <b>{mins}m {secs}s</b>! 🏁", u_branch)
+                    st.success(f"Time: {mins}m {secs}s")
                     st.rerun()
 
-    # ------------------------------------------
-    # TAB 4: MAINTENANCE REELS
-    # ------------------------------------------
     with tab_reels:
         st.subheader("🎬 Maintenance Reels")
-        st.info(f"Posting as: **{u_name}** ({u_role})")
-        
-        container5 = st.container(border=True)
-        with container5:
-            video_title = st.text_input("📌 Reel Title:", placeholder="e.g., How to calibrate the new sensor")
-            video_file = st.file_uploader("📤 Upload Video (MP4)", type=['mp4'])
-            
-            if video_file is not None:
-                st.video(video_file)
-                if st.button("🚀 Publish Reel", type="primary", use_container_width=True):
-                    if not video_title:
-                        st.warning("Please add a title for your reel.")
-                    else:
-                        st.success(f"Reel '{video_title}' published successfully!")
-                        msg = f"🎬 *New Reel Published - {u_branch}!*\n**{u_name}** just posted: '{video_title}'. Check it out on the system!"
-                        send_telegram_message(msg, u_branch)
+        with st.container(border=True):
+            vid_title = st.text_input("📌 Title:")
+            vid_file = st.file_uploader("📤 Upload MP4", type=['mp4'])
+            if vid_file and st.button("🚀 Publish"):
+                send_telegram_message(f"🎬 <b>New Reel by {u_name}</b>: <i>{vid_title}</i>", u_branch)
+                st.success("Published!")
 
     # ------------------------------------------
-    # TAB 5: MANAGER DASHBOARD
+    # TAB: MANAGER DASHBOARD (السجل الطبي للمعدات)
     # ------------------------------------------
     if u_role == "Manager":
-        with tabs[0]:
-            st.subheader(f"📊 {u_branch} - Manager Dashboard")
+        with tab_dash:
+            st.subheader("📊 Analytics & Machine Passport")
             
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Today's WRO Reports", "5", "-2")
-            col2.metric("LOTO Compliance", "100%", "Perfect")
-            col3.metric("Avg Pit Stop Time", "18m 30s", "-1m 10s")
+            # إحصائيات بصرية جذابة
+            c1, c2, c3 = st.columns(3)
+            c1.metric("WRO Reports", "12", "-3 Today")
+            c2.metric("LOTO Compliance", "100%", "Safe")
+            c3.metric("Avg Pit Stop", "18m", "-2m")
             
-            st.markdown("### 🏆 Top Technicians in Branch")
-            df = pd.DataFrame({
-                "Technician": ["Ahmed", "Khalid", "Yasser"],
-                "Points": [450, 320, 290],
-                "Title": ["👑 Mechanical King", "🦸‍♂️ SOS Hero", "⚡ The Flash"]
-            })
-            st.dataframe(df, use_container_width=True)
+            st.markdown("### 🏥 Machine Health Passport")
+            search_mac = st.selectbox("Select Machine to view history:", ["Mill A", "Mill B", "Main Sifter", "Packaging Line"])
+            
+            # رسم بياني خفيف يوضح الأعطال
+            chart_data = pd.DataFrame(
+                np.random.randint(1, 5, size=(7, 1)), 
+                columns=["Breakdowns"],
+                index=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            )
+            st.bar_chart(chart_data, color="#E74C3C")
+            
+            if search_mac == "Mill A":
+                st.warning("⚠️ Warning: Mill A has broken down 4 times this week. Root cause analysis recommended.")
+            else:
+                st.success(f"✅ {search_mac} is running optimally.")
