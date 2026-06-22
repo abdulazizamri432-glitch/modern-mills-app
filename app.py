@@ -11,12 +11,12 @@ st.set_page_config(page_title="MMC Smart Plant System", page_icon="🏭", layout
 # ==========================================
 # ⚠️ إعدادات التليجرام 
 # ==========================================
-TELEGRAM_BOT_TOKEN = "هنا_تحط_التوكن_حقك"
+TELEGRAM_BOT_TOKEN = "ضع_توكن_البوت_هنا"
 
 TELEGRAM_CHATS = {
     "Al-Jumum": "-5159290787",
-    "Al-Jouf": "-5176017884",
-    "Khamis Mushait": "-5104633079"
+    "Khamis Mushait": "-5104633079",
+    "Al-Jouf": "-5176017884"
 }
 
 PLANT_PASSWORDS = {
@@ -26,8 +26,8 @@ PLANT_PASSWORDS = {
 }
 
 def send_telegram_message(text, plant):
-    if TELEGRAM_BOT_TOKEN == "هنا_تحط_التوكن_حقك" or not TELEGRAM_BOT_TOKEN:
-        # st.error("🚨 تنبيه: نسيت تحط التوكن حق البوت!") # معطلة مؤقتاً لعدم الإزعاج في العرض
+    if TELEGRAM_BOT_TOKEN == "ضع_توكن_البوت_هنا" or not TELEGRAM_BOT_TOKEN:
+        st.warning("⚠️ النظام يعمل، لكن الإشعارات متوقفة لأنك لم تضع 'توكن البوت' في الكود (السطر 14).")
         return
 
     chat_id = TELEGRAM_CHATS.get(plant)
@@ -42,7 +42,7 @@ def send_telegram_message(text, plant):
         pass
 
 # ==========================================
-# 🎨 لمسات بصرية بسيطة 
+# 🎨 لمسات بصرية 
 # ==========================================
 st.markdown("""
 <style>
@@ -54,39 +54,35 @@ st.markdown("""
         font-weight: bold !important;
         text-align: center;
     }
-    .stButton>button {
-        border-radius: 8px;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        transform: scale(1.02);
-    }
-    div.row-widget.stRadio > div {
-        flex-direction: row;
-        justify-content: center;
-        background-color: rgba(0,0,0,0.05);
-        padding: 15px;
-        border-radius: 10px;
-    }
+    .stButton>button { border-radius: 8px; transition: 0.3s; }
+    .stButton>button:hover { transform: scale(1.02); }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🧠 تهيئة المتغيرات وقواعد البيانات الوهمية
+# 🧠 تهيئة قواعد البيانات الوهمية (Session State)
 # ==========================================
 if 'splash_done' not in st.session_state: st.session_state.splash_done = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'pitstop_active' not in st.session_state: st.session_state.pitstop_active = False
-if 'start_time' not in st.session_state: st.session_state.start_time = None
+if 'safety_ack' not in st.session_state: st.session_state.safety_ack = False 
 if 'user_points' not in st.session_state: st.session_state.user_points = random.randint(150, 450)
 if 'parts_requests' not in st.session_state: st.session_state.parts_requests = []
+if 'wro_pool' not in st.session_state: st.session_state.wro_pool = [] 
+if 'fazaas' not in st.session_state: st.session_state.fazaas = [] 
+if 'bounties' not in st.session_state: st.session_state.bounties = [] 
+if 'plant_brain' not in st.session_state: st.session_state.plant_brain = [] 
+if 'shift_log' not in st.session_state: st.session_state.shift_log = [] 
 
-# قواعد البيانات الجديدة
-if 'wro_pool' not in st.session_state: st.session_state.wro_pool = [] # طلبات أوبر للأعطال
-if 'fazaas' not in st.session_state: st.session_state.fazaas = [] # طلبات الفزعة
-if 'bounties' not in st.session_state: st.session_state.bounties = [] # لوحة المكافآت
-if 'plant_brain' not in st.session_state: st.session_state.plant_brain = [] # ذاكرة المحطة
-if 'shift_log' not in st.session_state: st.session_state.shift_log = [] # سجل مهام الوردية للتسليم
+if 'tools_crib' not in st.session_state: 
+    st.session_state.tools_crib = [
+        {"id": 1, "name": "Thermal Camera (Fluke)", "status": "Available", "user": ""},
+        {"id": 2, "name": "Vibration Analyzer", "status": "Available", "user": ""},
+        {"id": 3, "name": "Laser Shaft Alignment", "status": "Available", "user": ""},
+        {"id": 4, "name": "Heavy Duty Torque Wrench", "status": "Available", "user": ""}
+    ]
+
+if 'pitstop_active' not in st.session_state: st.session_state.pitstop_active = False
+if 'start_time' not in st.session_state: st.session_state.start_time = None
 
 # ==========================================
 # 1. SPLASH SCREEN
@@ -121,7 +117,7 @@ elif not st.session_state.logged_in:
             
             col_a, col_b = st.columns(2)
             with col_a:
-                plant = st.selectbox("🏭 Plant Location", ["Al-Jumum", "Al-Jouf", "Khamis Mushait"])
+                plant = st.selectbox("🏭 Plant Location", ["Al-Jumum", "Khamis Mushait", "Al-Jouf"])
                 role = st.selectbox("🔑 Role", ["Technician", "Manager"])
             with col_b:
                 if role == "Technician":
@@ -143,7 +139,23 @@ elif not st.session_state.logged_in:
                     st.rerun()
 
 # ==========================================
-# 3. MAIN APPLICATION
+# 3. SAFETY TOOLBOX TALK
+# ==========================================
+elif not st.session_state.safety_ack:
+    u_name = st.session_state.user_info['name']
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.container(border=True):
+            st.warning("### 🛑 Daily Toolbox Talk")
+            st.markdown(f"Welcome to shift, **{u_name}**. Before starting work, please read today's safety focus:")
+            st.info("**Today's Focus: Lock Out Tag Out (LOTO)**\n\nAlways ensure equipment is fully de-energized and your personal lock is applied before performing maintenance. Do not rely on someone else's lock.")
+            if st.button("✅ I Acknowledge & Commit to Safety", type="primary", use_container_width=True):
+                st.session_state.safety_ack = True
+                st.rerun()
+
+# ==========================================
+# 4. MAIN APPLICATION
 # ==========================================
 else:
     u_name = st.session_state.user_info['name']
@@ -169,19 +181,20 @@ else:
     st.sidebar.markdown("---")
     if st.sidebar.button("Leave Plant 🚪", use_container_width=True):
         st.session_state.logged_in = False
+        st.session_state.safety_ack = False 
         st.rerun()
 
     # --- Header ---
-    st.title(f"Welcome to {u_plant} Operations, {u_name}! 👋")
+    st.title(f"Welcome to {u_plant} Operations 👋")
     st.markdown("---")
     
-    # --- Tabs Setup بناءً على الصلاحيات ---
+    # --- Tabs Setup ---
     if u_role == "Manager":
-        tabs = st.tabs(["📊 Dashboard", "🛠️ Dispatch Hub", "📝 Log Task", "🧠 Plant Brain", "📦 Parts Request", "🤝 Handover", "⚡ Extras"])
-        tab_dash, tab_action, tab_log, tab_brain, tab_parts, tab_handover, tab_extras = tabs
+        tabs = st.tabs(["📊 Dashboard", "🛠️ Dispatch", "📝 Log Task", "🔧 Tool Crib", "🧠 Plant Brain", "📦 Parts", "🤝 Handover", "⚡ Extras"])
+        tab_dash, tab_action, tab_log, tab_tools, tab_brain, tab_parts, tab_handover, tab_extras = tabs
     else:
-        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "🧠 Plant Brain", "📦 Parts Request", "🤝 Handover", "⚡ Extras"])
-        tab_action, tab_log, tab_brain, tab_parts, tab_handover, tab_extras = tabs
+        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "🔧 Tool Crib", "🧠 Plant Brain", "📦 Parts", "🤝 Handover", "⚡ Extras"])
+        tab_action, tab_log, tab_tools, tab_brain, tab_parts, tab_handover, tab_extras = tabs
 
     # ------------------------------------------
     # MANAGER: DASHBOARD
@@ -191,7 +204,7 @@ else:
             st.markdown("### 📊 Plant Operations Dashboard")
             c1, c2, c3 = st.columns(3)
             c1.metric("🔴 Active WROs", len(st.session_state.wro_pool), "Pending Tasks")
-            c2.metric("🟢 Shift Completed Tasks", len(st.session_state.shift_log), "Good progress")
+            c2.metric("🟢 Shift Tasks Logged", len(st.session_state.shift_log), "Completed")
             c3.metric("🧠 Plant Brain Entries", len(st.session_state.plant_brain), "Knowledge Saved")
             
             st.markdown("#### 🏆 Plant Leaderboard")
@@ -203,7 +216,7 @@ else:
             st.dataframe(df_leaders, use_container_width=True)
 
     # ------------------------------------------
-    # DISPATCH / ACTION HUB (Uber for Maint, Faza'a, Bounties)
+    # DISPATCH / ACTION HUB
     # ------------------------------------------
     with tab_action:
         if u_role == "Manager":
@@ -223,7 +236,7 @@ else:
                             st.rerun()
             with col2:
                 with st.container(border=True):
-                    st.markdown("#### 💰 Post a Bounty (Extra Task)")
+                    st.markdown("#### 💰 Post a Bounty")
                     bnty_desc = st.text_input("📌 Task (e.g., Clean Pump Room):")
                     bnty_pts = st.slider("⭐ Reward Points:", 10, 100, 30, step=10)
                     if st.button("💸 Post Bounty", use_container_width=True):
@@ -235,7 +248,6 @@ else:
         else:
             st.markdown("### 🎯 Live Action Hub")
             
-            # 1. Uber WROs
             st.markdown("#### 🚨 Available WROs (Claim to Fix)")
             if not st.session_state.wro_pool:
                 st.info("No pending WROs right now. Good job team!")
@@ -250,16 +262,15 @@ else:
                             if st.button(f"🙋‍♂️ Claim Task!", key=f"wro_{wro['id']}", type="primary"):
                                 st.session_state.wro_pool.remove(wro)
                                 send_telegram_message(f"👨‍🔧 <b>WRO Claimed!</b>\n{u_name} is heading to {wro['machine']}.", u_plant)
-                                st.success("You claimed this task! Go fix it and log it later.")
+                                st.success("You claimed this task!")
                                 time.sleep(1)
                                 st.rerun()
 
-            # 2. Faza'a (Quick Assist)
             st.markdown("---")
             st.markdown("#### 🤝 Faza'a (Quick Assist)")
             with st.expander("Need help? Request a Faza'a"):
                 fz_loc = st.text_input("📍 Your Location:")
-                fz_need = st.text_input("🙋‍♂️ What do you need? (e.g., Lift heavy motor)")
+                fz_need = st.text_input("🙋‍♂️ What do you need?")
                 if st.button("📢 Ask for Faza'a", use_container_width=True):
                     if fz_loc:
                         st.session_state.fazaas.append({"id": random.randint(10,99), "req": u_name, "loc": fz_loc, "need": fz_need})
@@ -275,13 +286,12 @@ else:
                             st.session_state.user_points += 10
                             st.session_state.fazaas.remove(fz)
                             send_telegram_message(f"✅ <b>Faza'a Accepted!</b>\n{u_name} is going to help {fz['req']}.", u_plant)
-                            st.success("You got +10 Points for helping a teammate!")
+                            st.success("You got +10 Points!")
                             time.sleep(1)
                             st.rerun()
 
-            # 3. Bounties
             st.markdown("---")
-            st.markdown("#### 💰 Bounty Board (Extra Points)")
+            st.markdown("#### 💰 Bounty Board")
             if not st.session_state.bounties:
                 st.info("No active bounties right now.")
             else:
@@ -301,7 +311,7 @@ else:
                                 st.rerun()
 
     # ------------------------------------------
-    # TASK LOGGING & PLANT BRAIN
+    # TASK LOGGING
     # ------------------------------------------
     with tab_log:
         st.markdown("### 📝 Log Completed Task")
@@ -319,19 +329,29 @@ else:
             col_x, col_y, col_z = st.columns(3)
             with col_x: ppe_helmet = st.checkbox("👷‍♂️ Helmet & Glasses")
             with col_y: ppe_gloves = st.checkbox("🧤 Safety Gloves")
-            with col_z: ppe_tools = st.checkbox("🔧 LOTO Confirmed")
+            with col_z: ppe_tools = st.checkbox("🔧 Right Tools Used")
+            
+            # --- الإضافة الجديدة للتصوير الإجباري لـ LOTO ---
+            loto_photo = None
+            if "WRO" in task_type:
+                st.markdown("---")
+                st.markdown("#### 📸 LOTO Photo Verification (Mandatory for WRO)")
+                loto_photo = st.camera_input("Take a picture of the applied LOTO Lock")
+                if loto_photo:
+                    st.success("✅ LOTO Photo captured successfully!")
             
         if st.button("✅ Submit Task (+50 Points)", type="primary", use_container_width=True):
             if not machine_name or not issue_desc:
                 st.error("⚠️ Please fill in Machine Location and Description.")
             elif not (ppe_helmet and ppe_gloves and ppe_tools):
                 st.error("⚠️ You must check all HSE boxes before submitting!")
+            elif "WRO" in task_type and loto_photo is None:
+                # لن يتم إرسال المهمة إذا كانت WRO ولم يتم التقاط الصورة
+                st.error("📸 ⚠️ WRO requires a mandatory photo of the LOTO lock!")
             else:
                 st.session_state.user_points += 50
-                # Add to shift handover log
                 st.session_state.shift_log.append(f"[{task_type[:5]}] {machine_name} - By {u_name}")
                 
-                # Add to Plant Brain if it's WRO
                 if "WRO" in task_type:
                     st.session_state.plant_brain.append({
                         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -340,18 +360,68 @@ else:
                         "tech": u_name
                     })
                 
-                send_telegram_message(f"✅ <b>Task Completed</b>\n🏭 <b>Plant:</b> {u_plant}\n📍 <b>Machine:</b> {machine_name}\n👨‍🔧 <b>Tech:</b> {u_name}", u_plant)
+                # رسالة التليجرام
+                photo_msg = "\n📸 <b>LOTO Photo:</b> Verified & Attached in System" if loto_photo else ""
+                send_telegram_message(f"✅ <b>Task Completed</b>\n🏭 <b>Plant:</b> {u_plant}\n📍 <b>Machine:</b> {machine_name}\n👨‍🔧 <b>Tech:</b> {u_name}{photo_msg}", u_plant)
+                
                 st.success("🎉 Task logged successfully! Saved to Shift Log & Plant Brain.")
                 st.balloons()
                 time.sleep(2)
                 st.rerun()
 
+    # ------------------------------------------
+    # TOOL CRIB 
+    # ------------------------------------------
+    with tab_tools:
+        st.markdown("### 🔧 Tool Crib (Equipment Checkout)")
+        st.caption("Check out expensive/shared tools to let others know who has them.")
+        
+        df_tools = pd.DataFrame(st.session_state.tools_crib)
+        def color_status(val):
+            color = '#2ecc71' if val == 'Available' else '#e74c3c'
+            return f'color: {color}; font-weight: bold'
+        st.dataframe(df_tools.style.map(color_status, subset=['status']), use_container_width=True, hide_index=True)
+        
+        st.markdown("---")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            st.markdown("#### 📤 Borrow Tool")
+            avail_tools = [t['name'] for t in st.session_state.tools_crib if t['status'] == 'Available']
+            if avail_tools:
+                sel_tool = st.selectbox("Select Tool:", avail_tools)
+                if st.button("Borrow"):
+                    for t in st.session_state.tools_crib:
+                        if t['name'] == sel_tool:
+                            t['status'] = 'In Use'
+                            t['user'] = u_name
+                    st.success(f"You borrowed the {sel_tool}.")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.info("No tools available right now.")
+                
+        with col_t2:
+            st.markdown("#### 📥 Return Tool")
+            my_tools = [t['name'] for t in st.session_state.tools_crib if t['user'] == u_name]
+            if my_tools:
+                ret_tool = st.selectbox("Select Tool to return:", my_tools)
+                if st.button("Return Tool"):
+                    for t in st.session_state.tools_crib:
+                        if t['name'] == ret_tool:
+                            t['status'] = 'Available'
+                            t['user'] = ''
+                    st.success(f"You returned the {ret_tool}.")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.info("You don't have any tools checked out.")
+
+    # ------------------------------------------
+    # PLANT BRAIN & PARTS REQUEST
+    # ------------------------------------------
     with tab_brain:
         st.markdown("### 🧠 Plant Brain (Knowledge Base)")
-        st.caption("Search past WRO solutions to fix machines faster.")
-        
         search_q = st.text_input("🔍 Search Machine Name (e.g., Pump A):")
-        
         if st.session_state.plant_brain:
             for entry in reversed(st.session_state.plant_brain):
                 if search_q.lower() in entry['machine'].lower() or search_q == "":
@@ -360,13 +430,10 @@ else:
                         st.markdown(f"**🔧 Solution:** {entry['fix']}")
                         st.markdown(f"👨‍🔧 *Fixed by: {entry['tech']}*")
         else:
-            st.info("The Plant Brain is currently empty. Complete WROs to build knowledge!")
+            st.info("The Plant Brain is empty. Complete WROs to build knowledge!")
 
-    # ------------------------------------------
-    # PARTS REQUEST
-    # ------------------------------------------
     with tab_parts:
-        st.markdown("### 📦 Spare Parts Request (SAP Integrated)")
+        st.markdown("### 📦 Spare Parts Request")
         if u_role == "Technician":
             with st.container(border=True):
                 col1, col2 = st.columns(2)
@@ -376,20 +443,14 @@ else:
                 with col2:
                     target_machine = st.text_input("📍 For which Machine?:")
                     urgency = st.selectbox("🚨 Urgency:", ["Normal 🟢", "Urgent 🔴"])
-                
                 if st.button("📤 Submit Request", type="primary"):
                     if part_desc and target_machine:
                         req_id = len(st.session_state.parts_requests) + 1
-                        st.session_state.parts_requests.append({
-                            "ID": req_id, "Technician": u_name, "Part": part_desc, 
-                            "Machine": target_machine, "Status": "⏳ Pending"
-                        })
+                        st.session_state.parts_requests.append({"ID": req_id, "Technician": u_name, "Part": part_desc, "Machine": target_machine, "Status": "⏳ Pending"})
                         st.session_state.shift_log.append(f"Requested Part: {part_desc}")
                         st.success(f"Request #{req_id} sent!")
                     else:
                         st.warning("Please fill Part and Machine.")
-                        
-            st.markdown("#### 📋 My Requests")
             df_req = pd.DataFrame(st.session_state.parts_requests)
             if not df_req.empty:
                 st.dataframe(df_req[df_req['Technician'] == u_name], use_container_width=True)
@@ -410,30 +471,26 @@ else:
                 st.info("No parts requests.")
 
     # ------------------------------------------
-    # SHIFT HANDOVER (Auto-Summary)
+    # SHIFT HANDOVER
     # ------------------------------------------
     with tab_handover:
         st.markdown("### 🤝 Smart Shift Handover")
-        
-        # Auto-generate summary based on session activity
         auto_summary = f"🔄 Shift Summary for {u_name}:\n"
-        auto_summary += f"- Tasks & Bounties Completed: {len(st.session_state.shift_log)}\n"
+        auto_summary += f"- Tasks & Actions Completed: {len(st.session_state.shift_log)}\n"
         for log_item in st.session_state.shift_log:
             auto_summary += f"  > {log_item}\n"
             
         with st.container(border=True):
-            shift_note = st.text_area("📝 Review & Add Handover Notes:", value=auto_summary, height=200)
+            shift_note = st.text_area("📝 Review & Add Notes:", value=auto_summary, height=200)
             urgent_flag = st.checkbox("🚨 Mark as Urgent for next shift")
-            
             if st.button("📤 Submit Shift Handover", use_container_width=True):
                 urgency = "🔴 URGENT" if urgent_flag else "🟢 Normal"
                 send_telegram_message(f"🤝 <b>Shift Handover ({urgency})</b>\n━━━━━━━━━━━━━━\n👨‍🔧 <b>From:</b> {u_name}\n📝 <b>Notes:</b>\n{shift_note}", u_plant)
-                st.success("Handover logged! Next shift will be notified. Have a good rest!")
-                # Clear shift log for the next day/shift if needed (optional)
+                st.success("Handover logged! Next shift notified.")
                 st.session_state.shift_log = []
 
     # ------------------------------------------
-    # EXTRAS (SOS, Pit Stop, Reels)
+    # EXTRAS (SOS, Pit Stop)
     # ------------------------------------------
     with tab_extras:
         col1, col2 = st.columns(2)
