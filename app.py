@@ -9,9 +9,9 @@ from datetime import datetime
 st.set_page_config(page_title="MMC Smart Plant System", page_icon="🏭", layout="wide", initial_sidebar_state="expanded")
 
 # ==========================================
-# ⚠️ إعدادات التليجرام 
+# ⚠️ إعدادات التليجرام (تمت إضافة توكن البوت بنجاح)
 # ==========================================
-TELEGRAM_BOT_TOKEN = "ضع_توكن_البوت_هنا"
+TELEGRAM_BOT_TOKEN = "8912670603:AAEr-hufquf8PIxnv-aKv0fz-9WgZa0oRks"
 
 TELEGRAM_CHATS = {
     "Al-Jumum": "-5159290787",
@@ -26,10 +26,6 @@ PLANT_PASSWORDS = {
 }
 
 def send_telegram_message(text, plant):
-    if TELEGRAM_BOT_TOKEN == "ضع_توكن_البوت_هنا" or not TELEGRAM_BOT_TOKEN:
-        st.warning("⚠️ النظام يعمل، لكن الإشعارات متوقفة لأنك لم تضع 'توكن البوت' في الكود (السطر 14).")
-        return
-
     chat_id = TELEGRAM_CHATS.get(plant)
     if not chat_id:
         return 
@@ -73,13 +69,9 @@ if 'bounties' not in st.session_state: st.session_state.bounties = []
 if 'plant_brain' not in st.session_state: st.session_state.plant_brain = [] 
 if 'shift_log' not in st.session_state: st.session_state.shift_log = [] 
 
+# تم تفريغ قائمة العهد لتتم إدارتها بواسطة المدير
 if 'tools_crib' not in st.session_state: 
-    st.session_state.tools_crib = [
-        {"id": 1, "name": "Thermal Camera (Fluke)", "status": "Available", "user": ""},
-        {"id": 2, "name": "Vibration Analyzer", "status": "Available", "user": ""},
-        {"id": 3, "name": "Laser Shaft Alignment", "status": "Available", "user": ""},
-        {"id": 4, "name": "Heavy Duty Torque Wrench", "status": "Available", "user": ""}
-    ]
+    st.session_state.tools_crib = []
 
 if 'pitstop_active' not in st.session_state: st.session_state.pitstop_active = False
 if 'start_time' not in st.session_state: st.session_state.start_time = None
@@ -331,7 +323,6 @@ else:
             with col_y: ppe_gloves = st.checkbox("🧤 Safety Gloves")
             with col_z: ppe_tools = st.checkbox("🔧 Right Tools Used")
             
-            # --- الإضافة الجديدة للتصوير الإجباري لـ LOTO ---
             loto_photo = None
             if "WRO" in task_type:
                 st.markdown("---")
@@ -346,7 +337,6 @@ else:
             elif not (ppe_helmet and ppe_gloves and ppe_tools):
                 st.error("⚠️ You must check all HSE boxes before submitting!")
             elif "WRO" in task_type and loto_photo is None:
-                # لن يتم إرسال المهمة إذا كانت WRO ولم يتم التقاط الصورة
                 st.error("📸 ⚠️ WRO requires a mandatory photo of the LOTO lock!")
             else:
                 st.session_state.user_points += 50
@@ -360,7 +350,6 @@ else:
                         "tech": u_name
                     })
                 
-                # رسالة التليجرام
                 photo_msg = "\n📸 <b>LOTO Photo:</b> Verified & Attached in System" if loto_photo else ""
                 send_telegram_message(f"✅ <b>Task Completed</b>\n🏭 <b>Plant:</b> {u_plant}\n📍 <b>Machine:</b> {machine_name}\n👨‍🔧 <b>Tech:</b> {u_name}{photo_msg}", u_plant)
                 
@@ -370,51 +359,70 @@ else:
                 st.rerun()
 
     # ------------------------------------------
-    # TOOL CRIB 
+    # TOOL CRIB (نظام العهد بإدارة المدير)
     # ------------------------------------------
     with tab_tools:
         st.markdown("### 🔧 Tool Crib (Equipment Checkout)")
-        st.caption("Check out expensive/shared tools to let others know who has them.")
+        st.caption("Manage and check out plant equipment safely.")
         
-        df_tools = pd.DataFrame(st.session_state.tools_crib)
-        def color_status(val):
-            color = '#2ecc71' if val == 'Available' else '#e74c3c'
-            return f'color: {color}; font-weight: bold'
-        st.dataframe(df_tools.style.map(color_status, subset=['status']), use_container_width=True, hide_index=True)
-        
-        st.markdown("---")
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            st.markdown("#### 📤 Borrow Tool")
-            avail_tools = [t['name'] for t in st.session_state.tools_crib if t['status'] == 'Available']
-            if avail_tools:
-                sel_tool = st.selectbox("Select Tool:", avail_tools)
-                if st.button("Borrow"):
-                    for t in st.session_state.tools_crib:
-                        if t['name'] == sel_tool:
-                            t['status'] = 'In Use'
-                            t['user'] = u_name
-                    st.success(f"You borrowed the {sel_tool}.")
-                    time.sleep(1)
-                    st.rerun()
-            else:
-                st.info("No tools available right now.")
-                
-        with col_t2:
-            st.markdown("#### 📥 Return Tool")
-            my_tools = [t['name'] for t in st.session_state.tools_crib if t['user'] == u_name]
-            if my_tools:
-                ret_tool = st.selectbox("Select Tool to return:", my_tools)
-                if st.button("Return Tool"):
-                    for t in st.session_state.tools_crib:
-                        if t['name'] == ret_tool:
-                            t['status'] = 'Available'
-                            t['user'] = ''
-                    st.success(f"You returned the {ret_tool}.")
-                    time.sleep(1)
-                    st.rerun()
-            else:
-                st.info("You don't have any tools checked out.")
+        # --- إضافة أجهزة جديدة (للمدير فقط) ---
+        if u_role == "Manager":
+            with st.expander("➕ Add New Tool to Crib", expanded=False):
+                new_tool_name = st.text_input("Tool Name & Model (e.g., Fluke Multimeter):")
+                if st.button("Add Tool", type="primary"):
+                    if new_tool_name:
+                        new_id = len(st.session_state.tools_crib) + 1
+                        st.session_state.tools_crib.append({"id": new_id, "name": new_tool_name, "status": "Available", "user": ""})
+                        st.success(f"Added '{new_tool_name}' to the Tool Crib successfully!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Please enter a tool name.")
+            st.markdown("---")
+
+        # --- عرض واستعارة الأجهزة (للجميع) ---
+        if not st.session_state.tools_crib:
+            st.info("The Tool Crib is currently empty. Managers can add new tools.")
+        else:
+            df_tools = pd.DataFrame(st.session_state.tools_crib)
+            def color_status(val):
+                color = '#2ecc71' if val == 'Available' else '#e74c3c'
+                return f'color: {color}; font-weight: bold'
+            st.dataframe(df_tools.style.map(color_status, subset=['status']), use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                st.markdown("#### 📤 Borrow Tool")
+                avail_tools = [t['name'] for t in st.session_state.tools_crib if t['status'] == 'Available']
+                if avail_tools:
+                    sel_tool = st.selectbox("Select Tool:", avail_tools)
+                    if st.button("Borrow"):
+                        for t in st.session_state.tools_crib:
+                            if t['name'] == sel_tool:
+                                t['status'] = 'In Use'
+                                t['user'] = u_name
+                        st.success(f"You borrowed the {sel_tool}.")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    st.info("No tools available right now.")
+                    
+            with col_t2:
+                st.markdown("#### 📥 Return Tool")
+                my_tools = [t['name'] for t in st.session_state.tools_crib if t['user'] == u_name]
+                if my_tools:
+                    ret_tool = st.selectbox("Select Tool to return:", my_tools)
+                    if st.button("Return Tool"):
+                        for t in st.session_state.tools_crib:
+                            if t['name'] == ret_tool:
+                                t['status'] = 'Available'
+                                t['user'] = ''
+                        st.success(f"You returned the {ret_tool}.")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    st.info("You don't have any tools checked out.")
 
     # ------------------------------------------
     # PLANT BRAIN & PARTS REQUEST
