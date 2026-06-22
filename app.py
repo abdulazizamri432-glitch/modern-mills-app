@@ -9,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="MMC Smart Plant System", page_icon="🏭", layout="wide", initial_sidebar_state="expanded")
 
 # ==========================================
-# ⚠️ إعدادات التليجرام (تمت إضافة توكن البوت بنجاح)
+# ⚠️ إعدادات التليجرام 
 # ==========================================
 TELEGRAM_BOT_TOKEN = "8912670603:AAEr-hufquf8PIxnv-aKv0fz-9WgZa0oRks"
 
@@ -56,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🧠 تهيئة قواعد البيانات الوهمية (Session State)
+# 🧠 تهيئة قواعد البيانات الوهمية
 # ==========================================
 if 'splash_done' not in st.session_state: st.session_state.splash_done = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -68,10 +68,10 @@ if 'fazaas' not in st.session_state: st.session_state.fazaas = []
 if 'bounties' not in st.session_state: st.session_state.bounties = [] 
 if 'plant_brain' not in st.session_state: st.session_state.plant_brain = [] 
 if 'shift_log' not in st.session_state: st.session_state.shift_log = [] 
-
-# تم تفريغ قائمة العهد لتتم إدارتها بواسطة المدير
-if 'tools_crib' not in st.session_state: 
-    st.session_state.tools_crib = []
+if 'tools_crib' not in st.session_state: st.session_state.tools_crib = []
+if 'plant_reels' not in st.session_state: st.session_state.plant_reels = []
+# قاعدة بيانات مهام "يوم الصيانة"
+if 'maint_tasks' not in st.session_state: st.session_state.maint_tasks = []
 
 if 'pitstop_active' not in st.session_state: st.session_state.pitstop_active = False
 if 'start_time' not in st.session_state: st.session_state.start_time = None
@@ -126,7 +126,7 @@ elif not st.session_state.logged_in:
                 elif role == "Manager" and password != PLANT_PASSWORDS.get(plant): 
                     st.error(f"❌ Incorrect Password for {plant} Manager!")
                 else:
-                    st.session_state.user_info = {"name": emp_name, "plant": plant, "dept": department, "role": role}
+                    st.session_state.user_info = {"name": emp_name, "id": emp_id, "plant": plant, "dept": department, "role": role}
                     st.session_state.logged_in = True
                     st.rerun()
 
@@ -151,6 +151,7 @@ elif not st.session_state.safety_ack:
 # ==========================================
 else:
     u_name = st.session_state.user_info['name']
+    u_id = st.session_state.user_info['id']
     u_plant = st.session_state.user_info['plant']
     u_dept = st.session_state.user_info['dept']
     u_role = st.session_state.user_info['role']
@@ -164,6 +165,7 @@ else:
     st.sidebar.markdown(f"## 🏭 {u_plant} Plant")
     st.sidebar.markdown("---")
     st.sidebar.write(f"**👤 Name:** {u_name}")
+    st.sidebar.write(f"**💳 ID:** {u_id}")
     st.sidebar.write(f"**🔑 Role:** {u_role}")
     if u_role == "Technician":
          st.sidebar.write(f"**🛠️ Dept:** {u_dept}")
@@ -182,11 +184,11 @@ else:
     
     # --- Tabs Setup ---
     if u_role == "Manager":
-        tabs = st.tabs(["📊 Dashboard", "🛠️ Dispatch", "📝 Log Task", "🔧 Tool Crib", "🧠 Plant Brain", "📦 Parts", "🤝 Handover", "⚡ Extras"])
-        tab_dash, tab_action, tab_log, tab_tools, tab_brain, tab_parts, tab_handover, tab_extras = tabs
+        tabs = st.tabs(["📊 Dashboard", "🛠️ Dispatch", "📝 Log Task", "📅 Maint. Day", "🔧 Tool Crib", "🧠 Plant Brain", "🎬 Reels", "📦 Parts", "🤝 Handover", "⚡ Extras"])
+        tab_dash, tab_action, tab_log, tab_maint, tab_tools, tab_brain, tab_reels, tab_parts, tab_handover, tab_extras = tabs
     else:
-        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "🔧 Tool Crib", "🧠 Plant Brain", "📦 Parts", "🤝 Handover", "⚡ Extras"])
-        tab_action, tab_log, tab_tools, tab_brain, tab_parts, tab_handover, tab_extras = tabs
+        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "📅 Maint. Day", "🔧 Tool Crib", "🧠 Plant Brain", "🎬 Reels", "📦 Parts", "🤝 Handover", "⚡ Extras"])
+        tab_action, tab_log, tab_maint, tab_tools, tab_brain, tab_reels, tab_parts, tab_handover, tab_extras = tabs
 
     # ------------------------------------------
     # MANAGER: DASHBOARD
@@ -197,7 +199,7 @@ else:
             c1, c2, c3 = st.columns(3)
             c1.metric("🔴 Active WROs", len(st.session_state.wro_pool), "Pending Tasks")
             c2.metric("🟢 Shift Tasks Logged", len(st.session_state.shift_log), "Completed")
-            c3.metric("🧠 Plant Brain Entries", len(st.session_state.plant_brain), "Knowledge Saved")
+            c3.metric("📅 Maint. Tasks", len([t for t in st.session_state.maint_tasks if t['status'] == 'Completed']), "Completed")
             
             st.markdown("#### 🏆 Plant Leaderboard")
             df_leaders = pd.DataFrame({
@@ -212,7 +214,7 @@ else:
     # ------------------------------------------
     with tab_action:
         if u_role == "Manager":
-            st.markdown("### 🛠️ Dispatch Hub (Assign Tasks)")
+            st.markdown("### 🛠️ Dispatch Hub (Assign WROs)")
             col1, col2 = st.columns(2)
             with col1:
                 with st.container(border=True):
@@ -269,41 +271,9 @@ else:
                         send_telegram_message(f"🤝 <b>Faza'a Needed!</b>\n📍 {fz_loc}\n🙋‍♂️ {u_name} needs: {fz_need}", u_plant)
                         st.success("Faza'a broadcasted!")
                         st.rerun()
-            
-            if st.session_state.fazaas:
-                for fz in st.session_state.fazaas:
-                    if fz['req'] != u_name:
-                        st.warning(f"**{fz['req']}** at **{fz['loc']}** needs: {fz['need']}")
-                        if st.button(f"🏃‍♂️ I'm coming! (+10 pts)", key=f"fz_{fz['id']}"):
-                            st.session_state.user_points += 10
-                            st.session_state.fazaas.remove(fz)
-                            send_telegram_message(f"✅ <b>Faza'a Accepted!</b>\n{u_name} is going to help {fz['req']}.", u_plant)
-                            st.success("You got +10 Points!")
-                            time.sleep(1)
-                            st.rerun()
-
-            st.markdown("---")
-            st.markdown("#### 💰 Bounty Board")
-            if not st.session_state.bounties:
-                st.info("No active bounties right now.")
-            else:
-                for b in st.session_state.bounties:
-                    with st.container(border=True):
-                        col_x, col_y = st.columns([3, 1])
-                        with col_x:
-                            st.write(f"**📌 Task:** {b['desc']}")
-                            st.write(f"⭐ **Reward:** {b['points']} Points")
-                        with col_y:
-                            if st.button("✅ Complete", key=f"bnty_{b['id']}"):
-                                st.session_state.user_points += b['points']
-                                st.session_state.bounties.remove(b)
-                                st.session_state.shift_log.append(f"Completed Bounty: {b['desc']}")
-                                st.success(f"Awesome! You earned {b['points']} points.")
-                                time.sleep(1)
-                                st.rerun()
 
     # ------------------------------------------
-    # TASK LOGGING
+    # TASK LOGGING (توثيق المهام العام)
     # ------------------------------------------
     with tab_log:
         st.markdown("### 📝 Log Completed Task")
@@ -323,21 +293,18 @@ else:
             with col_y: ppe_gloves = st.checkbox("🧤 Safety Gloves")
             with col_z: ppe_tools = st.checkbox("🔧 Right Tools Used")
             
-            loto_photo = None
-            if "WRO" in task_type:
-                st.markdown("---")
-                st.markdown("#### 📸 LOTO Photo Verification (Mandatory for WRO)")
-                loto_photo = st.camera_input("Take a picture of the applied LOTO Lock")
-                if loto_photo:
-                    st.success("✅ LOTO Photo captured successfully!")
+            st.markdown("---")
+            st.markdown("#### 📸/🎥 Mandatory Proof of Completion")
+            st.caption("You MUST upload a photo or video showing the completed work to submit this task.")
+            proof_media = st.file_uploader("Upload Photo or Video", type=["jpg", "jpeg", "png", "mp4", "mov"])
             
         if st.button("✅ Submit Task (+50 Points)", type="primary", use_container_width=True):
             if not machine_name or not issue_desc:
                 st.error("⚠️ Please fill in Machine Location and Description.")
             elif not (ppe_helmet and ppe_gloves and ppe_tools):
                 st.error("⚠️ You must check all HSE boxes before submitting!")
-            elif "WRO" in task_type and loto_photo is None:
-                st.error("📸 ⚠️ WRO requires a mandatory photo of the LOTO lock!")
+            elif not proof_media:
+                st.error("❌ ⚠️ Proof Required: You cannot submit without uploading a photo or video of the work!")
             else:
                 st.session_state.user_points += 50
                 st.session_state.shift_log.append(f"[{task_type[:5]}] {machine_name} - By {u_name}")
@@ -350,86 +317,133 @@ else:
                         "tech": u_name
                     })
                 
-                photo_msg = "\n📸 <b>LOTO Photo:</b> Verified & Attached in System" if loto_photo else ""
-                send_telegram_message(f"✅ <b>Task Completed</b>\n🏭 <b>Plant:</b> {u_plant}\n📍 <b>Machine:</b> {machine_name}\n👨‍🔧 <b>Tech:</b> {u_name}{photo_msg}", u_plant)
+                send_telegram_message(f"✅ <b>Task Completed & Verified!</b>\n🏭 <b>Plant:</b> {u_plant}\n📍 <b>Machine:</b> {machine_name}\n👨‍🔧 <b>Tech:</b> {u_name}\n📸 <i>Media Proof Uploaded in System</i>", u_plant)
                 
-                st.success("🎉 Task logged successfully! Saved to Shift Log & Plant Brain.")
+                st.success("🎉 Task logged and verified successfully! Saved to Shift Log.")
                 st.balloons()
                 time.sleep(2)
                 st.rerun()
 
     # ------------------------------------------
-    # TOOL CRIB (نظام العهد بإدارة المدير)
+    # MAINTENANCE DAY (يوم الصيانة)
     # ------------------------------------------
-    with tab_tools:
-        st.markdown("### 🔧 Tool Crib (Equipment Checkout)")
-        st.caption("Manage and check out plant equipment safely.")
+    with tab_maint:
+        st.markdown("### 📅 Maintenance Day (يوم الصيانة)")
         
-        # --- إضافة أجهزة جديدة (للمدير فقط) ---
         if u_role == "Manager":
-            with st.expander("➕ Add New Tool to Crib", expanded=False):
-                new_tool_name = st.text_input("Tool Name & Model (e.g., Fluke Multimeter):")
-                if st.button("Add Tool", type="primary"):
-                    if new_tool_name:
-                        new_id = len(st.session_state.tools_crib) + 1
-                        st.session_state.tools_crib.append({"id": new_id, "name": new_tool_name, "status": "Available", "user": ""})
-                        st.success(f"Added '{new_tool_name}' to the Tool Crib successfully!")
+            with st.container(border=True):
+                st.markdown("#### 📝 Assign Maintenance Task")
+                col_m1, col_m2 = st.columns(2)
+                with col_m1:
+                    tech_name_assign = st.text_input("👤 Technician Name:")
+                    tech_id_assign = st.text_input("💳 Technician ID (Mandatory):")
+                with col_m2:
+                    maint_task_desc = st.text_area("🛠️ Task Details:")
+                
+                if st.button("📤 Assign Task", type="primary"):
+                    if tech_name_assign and tech_id_assign and maint_task_desc:
+                        task_id = random.randint(1000, 9999)
+                        st.session_state.maint_tasks.append({
+                            "id": task_id,
+                            "tech_name": tech_name_assign,
+                            "tech_id": tech_id_assign,
+                            "desc": maint_task_desc,
+                            "status": "⏳ Pending",
+                            "report": "",
+                            "assigned_by": u_name
+                        })
+                        send_telegram_message(f"📅 <b>New Maint. Day Task!</b>\n👨‍🔧 <b>To:</b> {tech_name_assign}\n🔢 <b>ID:</b> {tech_id_assign}\n🛠️ <b>Task:</b> {maint_task_desc}", u_plant)
+                        st.success(f"Task assigned to {tech_name_assign} successfully!")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.warning("⚠️ Please enter a tool name.")
-            st.markdown("---")
+                        st.warning("⚠️ Please fill all fields.")
+            
+            st.markdown("#### 📊 Maintenance Tasks Overview")
+            if not st.session_state.maint_tasks:
+                st.info("No tasks assigned yet.")
+            else:
+                df_maint = pd.DataFrame(st.session_state.maint_tasks)
+                st.dataframe(df_maint[['tech_name', 'tech_id', 'desc', 'status', 'report']], use_container_width=True)
 
-        # --- عرض واستعارة الأجهزة (للجميع) ---
+        else: # Technician View
+            st.markdown("#### 📋 My Assigned Maintenance Tasks")
+            # تصفية المهام بناءً على الرقم الوظيفي للموظف وحالة المهمة
+            my_maint_tasks = [t for t in st.session_state.maint_tasks if t['tech_id'] == u_id and "Pending" in t['status']]
+            
+            if not my_maint_tasks:
+                st.success("🎉 You have no pending Maintenance Day tasks!")
+            else:
+                for task in my_maint_tasks:
+                    with st.container(border=True):
+                        st.warning(f"**🛠️ Required Task:** {task['desc']}")
+                        st.caption(f"👤 Assigned by: Manager {task['assigned_by']}")
+                        
+                        tech_report = st.text_area("📝 What did you do to complete this?", key=f"report_{task['id']}")
+                        maint_media = st.file_uploader("📸/🎥 Upload Proof (Mandatory)", type=["jpg", "png", "mp4", "mov"], key=f"media_{task['id']}")
+                        
+                        if st.button("✅ Submit Work", key=f"btn_maint_{task['id']}", type="primary"):
+                            if not tech_report or not maint_media:
+                                st.error("❌ ⚠️ You MUST write a report AND upload media proof to complete this task!")
+                            else:
+                                task['status'] = "✅ Completed"
+                                task['report'] = tech_report
+                                st.session_state.user_points += 80
+                                st.session_state.shift_log.append(f"[Maint. Day] {task['desc'][:20]}...")
+                                send_telegram_message(f"✅ <b>Maint. Day Task Completed!</b>\n👨‍🔧 <b>By:</b> {u_name} ({u_id})\n🛠️ <b>Task:</b> {task['desc']}\n📝 <b>Report:</b> {tech_report}", u_plant)
+                                st.success("Awesome! Task completed and verified.")
+                                time.sleep(2)
+                                st.rerun()
+
+    # ------------------------------------------
+    # TOOL CRIB
+    # ------------------------------------------
+    with tab_tools:
+        st.markdown("### 🔧 Tool Crib (Equipment Checkout)")
+        if u_role == "Manager":
+            with st.expander("➕ Add New Tool to Crib", expanded=False):
+                new_tool_name = st.text_input("Tool Name & Model:")
+                if st.button("Add Tool", type="primary"):
+                    if new_tool_name:
+                        st.session_state.tools_crib.append({"id": len(st.session_state.tools_crib)+1, "name": new_tool_name, "status": "Available", "user": ""})
+                        st.success("Tool added!")
+                        time.sleep(1)
+                        st.rerun()
+
         if not st.session_state.tools_crib:
-            st.info("The Tool Crib is currently empty. Managers can add new tools.")
+            st.info("The Tool Crib is empty.")
         else:
             df_tools = pd.DataFrame(st.session_state.tools_crib)
             def color_status(val):
-                color = '#2ecc71' if val == 'Available' else '#e74c3c'
-                return f'color: {color}; font-weight: bold'
+                return f'color: {"#2ecc71" if val == "Available" else "#e74c3c"}; font-weight: bold'
             st.dataframe(df_tools.style.map(color_status, subset=['status']), use_container_width=True, hide_index=True)
             
-            st.markdown("---")
             col_t1, col_t2 = st.columns(2)
             with col_t1:
-                st.markdown("#### 📤 Borrow Tool")
                 avail_tools = [t['name'] for t in st.session_state.tools_crib if t['status'] == 'Available']
                 if avail_tools:
-                    sel_tool = st.selectbox("Select Tool:", avail_tools)
+                    sel_tool = st.selectbox("Select Tool to Borrow:", avail_tools)
                     if st.button("Borrow"):
                         for t in st.session_state.tools_crib:
                             if t['name'] == sel_tool:
-                                t['status'] = 'In Use'
-                                t['user'] = u_name
-                        st.success(f"You borrowed the {sel_tool}.")
-                        time.sleep(1)
+                                t['status'], t['user'] = 'In Use', u_name
                         st.rerun()
-                else:
-                    st.info("No tools available right now.")
-                    
             with col_t2:
-                st.markdown("#### 📥 Return Tool")
                 my_tools = [t['name'] for t in st.session_state.tools_crib if t['user'] == u_name]
                 if my_tools:
-                    ret_tool = st.selectbox("Select Tool to return:", my_tools)
-                    if st.button("Return Tool"):
+                    ret_tool = st.selectbox("Select Tool to Return:", my_tools)
+                    if st.button("Return"):
                         for t in st.session_state.tools_crib:
                             if t['name'] == ret_tool:
-                                t['status'] = 'Available'
-                                t['user'] = ''
-                        st.success(f"You returned the {ret_tool}.")
-                        time.sleep(1)
+                                t['status'], t['user'] = 'Available', ''
                         st.rerun()
-                else:
-                    st.info("You don't have any tools checked out.")
 
     # ------------------------------------------
-    # PLANT BRAIN & PARTS REQUEST
+    # PLANT BRAIN 
     # ------------------------------------------
     with tab_brain:
         st.markdown("### 🧠 Plant Brain (Knowledge Base)")
-        search_q = st.text_input("🔍 Search Machine Name (e.g., Pump A):")
+        search_q = st.text_input("🔍 Search Machine Name:")
         if st.session_state.plant_brain:
             for entry in reversed(st.session_state.plant_brain):
                 if search_q.lower() in entry['machine'].lower() or search_q == "":
@@ -438,8 +452,36 @@ else:
                         st.markdown(f"**🔧 Solution:** {entry['fix']}")
                         st.markdown(f"👨‍🔧 *Fixed by: {entry['tech']}*")
         else:
-            st.info("The Plant Brain is empty. Complete WROs to build knowledge!")
+            st.info("The Plant Brain is empty.")
 
+    # ------------------------------------------
+    # 🎬 PLANT REELS 
+    # ------------------------------------------
+    with tab_reels:
+        st.markdown("### 🎬 Plant Reels (Tutorials & Guides)")
+        with st.expander("📤 Upload a New Reel (+100 Points)", expanded=False):
+            reel_title = st.text_input("📌 Reel Title:")
+            reel_file = st.file_uploader("Upload Video", type=["mp4", "mov"])
+            if st.button("🚀 Publish Reel", type="primary"):
+                if reel_title and reel_file:
+                    st.session_state.plant_reels.append({
+                        "title": reel_title, "author": u_name, "date": datetime.now().strftime("%Y-%m-%d"), "video_bytes": reel_file.read()
+                    })
+                    st.session_state.user_points += 100
+                    st.success("Reel published!")
+                    time.sleep(1)
+                    st.rerun()
+        st.markdown("---")
+        if st.session_state.plant_reels:
+            for reel in reversed(st.session_state.plant_reels):
+                with st.container(border=True):
+                    st.markdown(f"**📌 {reel['title']}**")
+                    st.caption(f"👨‍🔧 By: {reel['author']} | 📅 {reel['date']}")
+                    st.video(reel['video_bytes'])
+
+    # ------------------------------------------
+    # PARTS REQUEST
+    # ------------------------------------------
     with tab_parts:
         st.markdown("### 📦 Spare Parts Request")
         if u_role == "Technician":
@@ -447,21 +489,13 @@ else:
                 col1, col2 = st.columns(2)
                 with col1:
                     part_desc = st.text_input("🛠️ Part Description:")
-                    sap_number = st.text_input("🔢 SAP Material No:")
                 with col2:
-                    target_machine = st.text_input("📍 For which Machine?:")
-                    urgency = st.selectbox("🚨 Urgency:", ["Normal 🟢", "Urgent 🔴"])
-                if st.button("📤 Submit Request", type="primary"):
-                    if part_desc and target_machine:
-                        req_id = len(st.session_state.parts_requests) + 1
-                        st.session_state.parts_requests.append({"ID": req_id, "Technician": u_name, "Part": part_desc, "Machine": target_machine, "Status": "⏳ Pending"})
-                        st.session_state.shift_log.append(f"Requested Part: {part_desc}")
-                        st.success(f"Request #{req_id} sent!")
-                    else:
-                        st.warning("Please fill Part and Machine.")
+                    target_machine = st.text_input("📍 Machine?:")
+                if st.button("📤 Submit Request", type="primary") and part_desc:
+                    st.session_state.parts_requests.append({"ID": len(st.session_state.parts_requests)+1, "Technician": u_name, "Part": part_desc, "Machine": target_machine, "Status": "⏳ Pending"})
+                    st.success("Request sent!")
             df_req = pd.DataFrame(st.session_state.parts_requests)
-            if not df_req.empty:
-                st.dataframe(df_req[df_req['Technician'] == u_name], use_container_width=True)
+            if not df_req.empty: st.dataframe(df_req[df_req['Technician'] == u_name], use_container_width=True)
 
         elif u_role == "Manager":
             df_req = pd.DataFrame(st.session_state.parts_requests)
@@ -472,57 +506,44 @@ else:
                 if st.button("💾 Update Status"):
                     for r in st.session_state.parts_requests:
                         if r["ID"] == sel_id: r["Status"] = action
-                    st.success("Updated!")
-                    time.sleep(1)
                     st.rerun()
-            else:
-                st.info("No parts requests.")
 
     # ------------------------------------------
     # SHIFT HANDOVER
     # ------------------------------------------
     with tab_handover:
         st.markdown("### 🤝 Smart Shift Handover")
-        auto_summary = f"🔄 Shift Summary for {u_name}:\n"
-        auto_summary += f"- Tasks & Actions Completed: {len(st.session_state.shift_log)}\n"
-        for log_item in st.session_state.shift_log:
-            auto_summary += f"  > {log_item}\n"
-            
+        auto_summary = f"🔄 Shift Summary for {u_name}:\n- Tasks Completed: {len(st.session_state.shift_log)}\n"
+        for log_item in st.session_state.shift_log: auto_summary += f"  > {log_item}\n"
         with st.container(border=True):
-            shift_note = st.text_area("📝 Review & Add Notes:", value=auto_summary, height=200)
-            urgent_flag = st.checkbox("🚨 Mark as Urgent for next shift")
-            if st.button("📤 Submit Shift Handover", use_container_width=True):
-                urgency = "🔴 URGENT" if urgent_flag else "🟢 Normal"
-                send_telegram_message(f"🤝 <b>Shift Handover ({urgency})</b>\n━━━━━━━━━━━━━━\n👨‍🔧 <b>From:</b> {u_name}\n📝 <b>Notes:</b>\n{shift_note}", u_plant)
-                st.success("Handover logged! Next shift notified.")
+            shift_note = st.text_area("📝 Notes:", value=auto_summary, height=150)
+            if st.button("📤 Submit Handover", use_container_width=True):
+                send_telegram_message(f"🤝 <b>Shift Handover</b>\n👨‍🔧 {u_name}\n{shift_note}", u_plant)
+                st.success("Handover logged!")
                 st.session_state.shift_log = []
 
     # ------------------------------------------
-    # EXTRAS (SOS, Pit Stop)
+    # EXTRAS
     # ------------------------------------------
     with tab_extras:
         col1, col2 = st.columns(2)
         with col1:
             with st.container(border=True):
                 st.markdown("### 🚨 SOS Broadcast")
-                sos_loc = st.text_input("📍 Emergency Location:")
-                if st.button("🚨 Broadcast SOS Now!", type="primary", use_container_width=True):
+                sos_loc = st.text_input("📍 Location:")
+                if st.button("🚨 Broadcast SOS", type="primary", use_container_width=True):
                     send_telegram_message(f"🚨 <b>SOS from {u_name}!</b>\n📍 {sos_loc}", u_plant)
-                    st.error("🚨 SOS Broadcast Sent!")
-                    
+                    st.error("Sent!")
         with col2:
             with st.container(border=True):
-                st.markdown("### 🏎️ F1 Pit Stop Challenge")
-                pit_mac = st.text_input("⚙️ Machine Details:")
+                st.markdown("### 🏎️ Pit Stop Timer")
                 if not st.session_state.pitstop_active:
-                    if st.button("🏁 Start Timer"):
+                    if st.button("🏁 Start"):
                         st.session_state.pitstop_active = True
                         st.session_state.start_time = time.time()
                         st.rerun()
                 else:
-                    st.warning("⏱️ CHALLENGE IS LIVE!")
-                    if st.button("🛑 Stop Timer", type="primary"):
+                    if st.button("🛑 Stop", type="primary"):
                         mins, secs = divmod(int(time.time() - st.session_state.start_time), 60)
                         st.session_state.pitstop_active = False
-                        st.session_state.shift_log.append(f"Pit Stop on {pit_mac}: {mins}m {secs}s")
                         st.success(f"🎉 Time: {mins}m {secs}s")
