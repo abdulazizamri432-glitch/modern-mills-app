@@ -262,8 +262,8 @@ else:
             st.markdown("#### 🏆 Top Performers Leaderboard")
             leaders_data = [{"Tech ID": k, "Points Earned": v} for k, v in st.session_state.users_db.items()]
             df_leaders = pd.DataFrame(leaders_data).sort_values(by="Points Earned", ascending=False).reset_index(drop=True)
-            # تلوين الجدول ليعطي طابع احترافي
-            st.dataframe(df_leaders.style.background_gradient(cmap='Blues'), use_container_width=True)
+            # تم إزالة background_gradient لحل خطأ الـ matplotlib
+            st.dataframe(df_leaders, use_container_width=True)
 
     # ------------------------------------------
     # 🔗 SAP BRIDGE (الصدمة للمدير)
@@ -379,7 +379,7 @@ else:
                                 st.rerun()
 
     # ------------------------------------------
-    # TASK LOGGING (محاكاة الذكاء الاصطناعي للصور)
+    # TASK LOGGING
     # ------------------------------------------
     with tab_log:
         st.markdown("### 📝 Log Execution")
@@ -411,7 +411,6 @@ else:
             elif not proof_media:
                 st.error("❌ ⚠️ Visual evidence is strictly required for compliance.")
             else:
-                # محاكاة الذكاء الاصطناعي يحلل الصورة
                 with st.spinner("🤖 AI Vision analyzing media for compliance..."):
                     time.sleep(2)
                     st.success("👁️ AI Verification: LOTO & Work confirmed.")
