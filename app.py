@@ -37,8 +37,7 @@ st.markdown("""
 <style>
     .stApp { background-color: #0e1117; color: #c9d1d9; }
     .neon-text {
-        color: #00f2fe;
-        text-shadow: 0 0 10px rgba(0, 242, 254, 0.5), 0 0 20px rgba(0, 242, 254, 0.3);
+        color: #00f2fe; text-shadow: 0 0 10px rgba(0, 242, 254, 0.5), 0 0 20px rgba(0, 242, 254, 0.3);
         font-weight: 800 !important; font-size: 2.5em !important; text-align: center; margin-bottom: 20px;
     }
     .stButton>button {
@@ -61,7 +60,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🧠 تهيئة قواعد البيانات (مفصولة بالمنشأة)
+# 🧠 تهيئة قواعد البيانات
 # ==========================================
 if 'splash_done' not in st.session_state: st.session_state.splash_done = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -79,9 +78,19 @@ if 'plant_reels' not in st.session_state: st.session_state.plant_reels = []
 if 'maint_tasks' not in st.session_state: st.session_state.maint_tasks = []
 if 'predicted_sap_number' not in st.session_state: st.session_state.predicted_sap_number = ""
 
+# ⚙️ قاعدة بيانات ورشة الرولات (جديدة)
+if 'rolls_inventory' not in st.session_state: st.session_state.rolls_inventory = []
+
 def get_filtered_data(data_list, current_plant, role):
     if role == "Director (HQ)": return data_list 
     return [item for item in data_list if item.get('plant') == current_plant]
+
+# دالة حساب عمر الرول
+def calculate_lifespan(install_date_str):
+    if not install_date_str: return "N/A"
+    install_date = datetime.strptime(install_date_str, "%Y-%m-%d")
+    days_active = (datetime.now() - install_date).days
+    return f"{days_active} Days"
 
 # ==========================================
 # 1. SPLASH SCREEN
@@ -89,7 +98,7 @@ def get_filtered_data(data_list, current_plant, role):
 if not st.session_state.splash_done:
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     st.markdown("<div class='neon-text'>⚡ MMC OS v2.0</div>", unsafe_allow_html=True)
-    st.markdown("<h5 style='text-align: center; color: #8b949e; font-family: monospace;'>Booting Plant Kernels & Establishing SAP OData Links...</h5>", unsafe_allow_html=True)
+    st.markdown("<h5 style='text-align: center; color: #8b949e;'>Booting Plant Kernels & Establishing SAP OData Links...</h5>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         progress_bar = st.progress(0)
@@ -119,7 +128,7 @@ elif not st.session_state.logged_in:
                 role = st.selectbox("🔑 Clearance Level", ["Technician", "Manager", "Director (HQ)"])
             with col_b:
                 if role == "Technician":
-                    department = st.selectbox("🛠️ Division", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations"])
+                    department = st.selectbox("🛠️ Division", ["Mechanical", "Electrical", "Welding", "HVAC", "Operations", "Workshop"])
                     password = ""
                 elif role == "Manager":
                     department = "Management"
@@ -192,89 +201,67 @@ else:
     # --- Header ---
     if u_role == "Director (HQ)":
         st.markdown(f"<h1 style='color:#f39c12;'>🌐 Executive Global View: {u_name}</h1>", unsafe_allow_html=True)
-        st.caption("Central Command for Al-Jumum, Khamis Mushait, and Al-Jouf Operations.")
     else:
         st.markdown(f"<h1 style='color:white;'>Welcome, {u_name} 👋</h1>", unsafe_allow_html=True)
     
-    # --- Tabs Setup ---
+    # --- Tabs Setup (تم إضافة Rolls Workshop) ---
     if u_role == "Director (HQ)":
-        tabs = st.tabs(["🌐 Global KPIs", "🚨 Emergency Radar", "📦 Supply Chain (SAP)", "📊 Fleet & Leaderboard"])
-        tab_kpis, tab_radar, tab_sap_hq, tab_fleet = tabs
+        tabs = st.tabs(["🌐 Global KPIs", "🚨 Emergency Radar", "⚙️ Rolls Workshop", "📦 Supply Chain (SAP)", "📊 Fleet & Leaderboard"])
+        tab_kpis, tab_radar, tab_rolls_hq, tab_sap_hq, tab_fleet = tabs
     elif u_role == "Manager":
-        tabs = st.tabs(["📊 Command Center", "🔗 SAP Bridge", "🛠️ Dispatch", "📝 Log Task", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
-        tab_dash, tab_sap, tab_action, tab_log, tab_maint, tab_parts, tab_brain, tab_reels = tabs
+        tabs = st.tabs(["📊 Command Center", "⚙️ Rolls Workshop", "🔗 SAP Bridge", "🛠️ Dispatch", "📝 Log Task", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
+        tab_dash, tab_rolls, tab_sap, tab_action, tab_log, tab_maint, tab_parts, tab_brain, tab_reels = tabs
     else:
-        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
-        tab_action, tab_log, tab_maint, tab_parts, tab_brain, tab_reels = tabs
+        tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "⚙️ Rolls Workshop", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
+        tab_action, tab_log, tab_rolls, tab_maint, tab_parts, tab_brain, tab_reels = tabs
 
     # ==========================================
     # 🌐 DIRECTOR (HQ) EXCLUSIVE VIEWS
     # ==========================================
     if u_role == "Director (HQ)":
-        # 1. GLOBAL KPIs & CHARTS
         with tab_kpis:
-            st.markdown("<div class='hq-title'>📈 High-Level Financial & Operational KPIs</div>", unsafe_allow_html=True)
+            st.markdown("<div class='hq-title'>📈 High-Level Operational KPIs</div>", unsafe_allow_html=True)
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Global Health Index", "96.4%", "+1.2% YTD")
             c2.metric("Total Prevented Downtime", "$145K", "+$22K this month")
-            c3.metric("Pending WROs (All Plants)", len(st.session_state.wro_pool), "Action Required", delta_color="inverse")
+            c3.metric("Pending WROs", len(st.session_state.wro_pool), "Action Required", delta_color="inverse")
             c4.metric("Active Tech Fleet", len(st.session_state.users_db), "Personnel")
-            
-            st.markdown("---")
-            st.markdown("#### 📊 Cross-Plant Performance Analytics")
-            
-            # تجهيز بيانات الرسم البياني للمحطات
-            p_jumum = len([x for x in st.session_state.shift_log if x.get('plant') == 'Al-Jumum'])
-            p_khamis = len([x for x in st.session_state.shift_log if x.get('plant') == 'Khamis Mushait'])
-            p_jouf = len([x for x in st.session_state.shift_log if x.get('plant') == 'Al-Jouf'])
-            
-            chart_data = pd.DataFrame({
-                "Completed Tasks": [p_jumum, p_khamis, p_jouf]
-            }, index=["Al-Jumum", "Khamis Mushait", "Al-Jouf"])
-            
-            col_ch1, col_ch2 = st.columns([2, 1])
-            with col_ch1:
-                st.bar_chart(chart_data, use_container_width=True)
-            with col_ch2:
-                with st.container():
-                    st.info(f"**Al-Jumum:** {p_jumum} Tasks")
-                    st.warning(f"**Khamis Mushait:** {p_khamis} Tasks")
-                    st.success(f"**Al-Jouf:** {p_jouf} Tasks")
 
-        # 2. EMERGENCY RADAR
         with tab_radar:
             st.markdown("<div class='hq-title'>🚨 Global Emergency Radar (Live WROs)</div>", unsafe_allow_html=True)
-            if not st.session_state.wro_pool:
-                st.success("✅ All plants are clear. No active emergencies reported across the grid.")
+            if not st.session_state.wro_pool: st.success("✅ All plants are clear.")
             else:
                 for wro in st.session_state.wro_pool:
                     with st.container():
                         st.error(f"**⚠️ EMERGENCY IN {wro['plant'].upper()}**")
                         st.markdown(f"**📍 Location:** {wro['machine']} | **Signature:** {wro['issue']}")
 
-        # 3. GLOBAL SUPPLY CHAIN (SAP)
-        with tab_sap_hq:
-            st.markdown("<div class='hq-title'>🔗 Global SAP & Supply Chain Overview</div>", unsafe_allow_html=True)
-            st.markdown("Monitor pending parts requests across all operational nodes.")
-            if not st.session_state.parts_requests:
-                st.info("No pending supply chain requests.")
+        # ⚙️ رؤية المدير العام لرولات الطحن
+        with tab_rolls_hq:
+            st.markdown("<div class='hq-title'>⚙️ Global Milling Rolls Inventory</div>", unsafe_allow_html=True)
+            all_rolls = st.session_state.rolls_inventory
+            if not all_rolls:
+                st.info("No rolls registered in any plant.")
             else:
-                df_hq_parts = pd.DataFrame(st.session_state.parts_requests)
-                st.dataframe(df_hq_parts[['plant', 'Part', 'SAP_No', 'Status', 'Technician']], use_container_width=True)
+                # تحديث العمر الافتراضي للعرض
+                for r in all_rolls:
+                    r['Current_Age'] = calculate_lifespan(r['install_date'])
+                df_hq_rolls = pd.DataFrame(all_rolls)
+                st.dataframe(df_hq_rolls[['plant', 'serial', 'type', 'status', 'machine', 'Current_Age']], use_container_width=True)
 
-        # 4. FLEET & LEADERBOARD
+        with tab_sap_hq:
+            st.markdown("<div class='hq-title'>🔗 Global Supply Chain (SAP)</div>", unsafe_allow_html=True)
+            if not st.session_state.parts_requests: st.info("No pending requests.")
+            else: st.dataframe(pd.DataFrame(st.session_state.parts_requests)[['plant', 'Part', 'SAP_No', 'Status', 'Technician']], use_container_width=True)
+
         with tab_fleet:
             st.markdown("<div class='hq-title'>🏆 Global Workforce Leaderboard</div>", unsafe_allow_html=True)
-            st.caption("Top performing technicians across the entire company based on merit points.")
             if st.session_state.users_db:
-                hq_leaders = [{"Name": v["name"], "Plant": v["plant"], "Total Points": v["points"]} for k, v in st.session_state.users_db.items()]
-                df_hq_leaders = pd.DataFrame(hq_leaders).sort_values(by="Total Points", ascending=False).reset_index(drop=True)
-                st.dataframe(df_hq_leaders, use_container_width=True)
-            else:
-                st.info("No workforce data available yet.")
+                hq_leaders = [{"Name": v["name"], "Plant": v["plant"], "Points": v["points"]} for k, v in st.session_state.users_db.items()]
+                st.dataframe(pd.DataFrame(hq_leaders).sort_values(by="Points", ascending=False).reset_index(drop=True), use_container_width=True)
 
     # ==========================================
-    # 🏭 MANAGER & TECHNICIAN VIEWS (نفس ما كانت عليه وتعمل بشكل مثالي)
+    # 🏭 MANAGER & TECHNICIAN VIEWS
     # ==========================================
     if u_role == "Manager":
         with tab_dash:
@@ -286,23 +273,95 @@ else:
             c1.metric("🚨 Active WROs", len(my_wros), "Critical", delta_color="inverse")
             c2.metric("✅ Tasks Logged", len(my_logs), "+12%")
             c3.metric("📅 Maint. Closed", len([t for t in my_maint if t['status'] == 'Completed']))
-            st.markdown("#### 🏆 Plant Leaderboard")
-            leaders_data = [{"Tech ID": k, "Points": v["points"], "Name": v["name"]} for k, v in st.session_state.users_db.items() if v["plant"] == u_plant]
-            if leaders_data:
-                df_leaders = pd.DataFrame(leaders_data).sort_values(by="Points", ascending=False).reset_index(drop=True)
-                st.dataframe(df_leaders, use_container_width=True)
 
         with tab_sap:
             st.markdown("### 🔗 SAP S/4HANA Middleware")
-            st.markdown("<div style='margin-bottom:15px;'><span class='blinking-dot'></span> <b>Status:</b> OData Active</div>", unsafe_allow_html=True)
             with st.container():
                 st.error("⚠️ **Critical Low Stock:** Bearings 6004-2RS (Mat #1040092)")
                 if st.button("⚡ EXECUTE SAP PR INJECTION", type="primary"):
                     with st.spinner("Constructing JSON Payload..."):
                         time.sleep(1.5)
-                        st.success("✅ 201 Created: PR successfully injected into SAP.")
-                        send_telegram_message(f"🔗 <b>SAP Auto-System</b>\nGenerated PR for Material 1040092.", u_plant)
+                        st.success("✅ PR successfully injected into SAP.")
 
+    # ------------------------------------------
+    # ⚙️ ROLLS WORKSHOP (ورشة الرولات للفني والمدير)
+    # ------------------------------------------
+    if u_role in ["Manager", "Technician"]:
+        with tab_rolls:
+            st.markdown("### ⚙️ Milling Rolls Workshop")
+            my_rolls = get_filtered_data(st.session_state.rolls_inventory, u_plant, u_role)
+            
+            # قسم إضافة وتركيب الرولات (للفنيين وللمدراء إن أرادوا)
+            with st.container():
+                col_r1, col_r2 = st.columns(2)
+                # 1. إضافة رول جديد جاهز
+                with col_r1:
+                    st.markdown("#### ➕ Register New Ready Roll")
+                    roll_sn = st.text_input("🔢 Roll Serial Number:", placeholder="e.g., RL-2026-88")
+                    roll_type = st.selectbox("🛠️ Roll Type:", ["Break Roll", "Reduction Roll", "Smooth Roll"])
+                    
+                    if st.button("💾 Add to Ready Inventory", type="primary"):
+                        if roll_sn:
+                            st.session_state.rolls_inventory.append({
+                                "id": random.randint(10000, 99999), "plant": u_plant, "serial": roll_sn, 
+                                "type": roll_type, "status": "🟢 Ready", "machine": "-", 
+                                "install_date": None, "added_by": u_name
+                            })
+                            st.success(f"Roll {roll_sn} added to Ready Inventory!")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Serial Number is required.")
+                
+                # 2. تركيب رول في ماكينة (يحذفه من الجاهز ويبدأ يحسب عمره)
+                with col_r2:
+                    st.markdown("#### 🔧 Install Roll to Machine")
+                    ready_rolls = [r for r in my_rolls if r['status'] == '🟢 Ready']
+                    
+                    if not ready_rolls:
+                        st.info("No 'Ready' rolls available in the workshop.")
+                    else:
+                        selected_roll_sn = st.selectbox("Select Ready Roll:", [r['serial'] for r in ready_rolls])
+                        target_machine = st.text_input("📍 Machine Name (e.g., Mill A):")
+                        
+                        if st.button("⚙️ Confirm Installation", type="primary"):
+                            if target_machine:
+                                # تحديث حالة الرول
+                                for r in st.session_state.rolls_inventory:
+                                    if r['serial'] == selected_roll_sn and r['plant'] == u_plant:
+                                        r['status'] = "🔴 Installed"
+                                        r['machine'] = target_machine
+                                        r['install_date'] = datetime.now().strftime("%Y-%m-%d")
+                                
+                                send_telegram_message(f"⚙️ <b>Roll Installed!</b>\n📍 Machine: {target_machine}\n🔢 Roll SN: {selected_roll_sn}\n👨‍🔧 By: {u_name}", u_plant)
+                                st.success(f"Roll {selected_roll_sn} installed successfully! Lifespan tracking started.")
+                                time.sleep(1.5)
+                                st.rerun()
+                            else:
+                                st.error("Please specify the Machine Name.")
+
+            st.markdown("---")
+            # عرض الجداول مفصولة (الجاهز لحال، واللي راكب شغال لحال)
+            st.markdown("#### 🟢 Ready Rolls (In Workshop)")
+            df_ready = pd.DataFrame([r for r in my_rolls if r['status'] == '🟢 Ready'])
+            if not df_ready.empty:
+                st.dataframe(df_ready[['serial', 'type', 'added_by']], use_container_width=True)
+            else:
+                st.caption("No ready rolls at the moment.")
+                
+            st.markdown("#### 🔴 Active/Installed Rolls (Lifespan Tracker)")
+            active_rolls = [r for r in my_rolls if r['status'] == '🔴 Installed']
+            if not active_rolls:
+                st.caption("No rolls currently tracked in machines.")
+            else:
+                for r in active_rolls:
+                    r['Age (Days)'] = calculate_lifespan(r['install_date'])
+                df_active = pd.DataFrame(active_rolls)
+                st.dataframe(df_active[['serial', 'type', 'machine', 'install_date', 'Age (Days)']], use_container_width=True)
+
+    # ------------------------------------------
+    # ACTION HUB (WROs & Bounties)
+    # ------------------------------------------
     if u_role in ["Manager", "Technician"]:
         with tab_action:
             my_wros = get_filtered_data(st.session_state.wro_pool, u_plant, u_role)
@@ -314,21 +373,17 @@ else:
                     with st.container():
                         wro_mac = st.text_input("📍 Equipment/Location:")
                         wro_desc = st.text_input("⚠️ Fault Signature:")
-                        if st.button("📢 DISPATCH WRO", type="primary", use_container_width=True):
-                            if wro_mac and wro_desc:
-                                st.session_state.wro_pool.append({"id": random.randint(1000, 9999), "plant": u_plant, "machine": wro_mac, "issue": wro_desc, "status": "Pending"})
-                                send_telegram_message(f"🚨 <b>CRITICAL WRO</b>\n📍 {wro_mac}\n⚠️ {wro_desc}", u_plant)
-                                st.success("Dispatched!")
-                                st.rerun()
+                        if st.button("📢 DISPATCH WRO", type="primary", use_container_width=True) and wro_mac:
+                            st.session_state.wro_pool.append({"id": random.randint(1000, 9999), "plant": u_plant, "machine": wro_mac, "issue": wro_desc, "status": "Pending"})
+                            send_telegram_message(f"🚨 <b>CRITICAL WRO</b>\n📍 {wro_mac}\n⚠️ {wro_desc}", u_plant)
+                            st.rerun()
                 with col2:
                     with st.container():
                         bnty_desc = st.text_input("📌 Objective:")
                         bnty_pts = st.slider("⭐ Reward:", 10, 100, 30, step=10)
-                        if st.button("💸 POST BOUNTY", use_container_width=True):
-                            if bnty_desc:
-                                st.session_state.bounties.append({"id": random.randint(1000,9999), "plant": u_plant, "desc": bnty_desc, "points": bnty_pts})
-                                st.success("Bounty is live!")
-                                st.rerun()
+                        if st.button("💸 POST BOUNTY", use_container_width=True) and bnty_desc:
+                            st.session_state.bounties.append({"id": random.randint(1000,9999), "plant": u_plant, "desc": bnty_desc, "points": bnty_pts})
+                            st.rerun()
             else:
                 st.markdown("### 🎯 Live Grid")
                 st.markdown("#### 🚨 Active Anomalies (WROs)")
@@ -338,8 +393,6 @@ else:
                         st.write(f"**📍 Location:** {wro['machine']} | **⚠️ Issue:** {wro['issue']}")
                         if st.button(f"⚡ INTERCEPT", key=f"wro_{wro['id']}", type="primary"):
                             st.session_state.wro_pool.remove(wro)
-                            st.success("Task bound to your ID.")
-                            time.sleep(1)
                             st.rerun()
                 st.markdown("#### 💰 Bounty Board")
                 if not my_bounties: st.info("No bounties.")
@@ -349,10 +402,11 @@ else:
                         if st.button("✅ CLAIM", key=f"bnty_{b['id']}"):
                             st.session_state.users_db[u_id]["points"] += b['points'] 
                             st.session_state.bounties.remove(b)
-                            st.success(f"Reward transferred.")
-                            time.sleep(1)
                             st.rerun()
 
+        # ------------------------------------------
+        # TASK LOGGING
+        # ------------------------------------------
         with tab_log:
             st.markdown("### 📝 Log Execution")
             task_type = st.radio("Classification", ["🔴 WRO", "🟢 PRO"], horizontal=True, label_visibility="collapsed")
@@ -366,14 +420,15 @@ else:
                 if machine_name and issue_desc and proof_media:
                     st.session_state.users_db[u_id]["points"] += 50 
                     st.session_state.shift_log.append({"plant": u_plant, "log": f"[{task_type[:5]}] {machine_name}", "user": u_name})
-                    if "WRO" in task_type:
-                        st.session_state.plant_brain.append({"plant": u_plant, "date": datetime.now().strftime("%Y-%m-%d"), "machine": machine_name, "fix": issue_desc, "tech": u_name})
                     st.success("Task logged!")
                     time.sleep(1)
                     st.rerun()
                 else:
                     st.error("⚠️ Fields and proof are mandatory.")
 
+        # ------------------------------------------
+        # MAINTENANCE DAY
+        # ------------------------------------------
         with tab_maint:
             st.markdown("### 📅 Planned Maintenance Outage")
             if u_role == "Manager":
@@ -390,8 +445,6 @@ else:
                                 "id": random.randint(1000, 9999), "plant": u_plant, "tech_name": tech_name_assign, 
                                 "tech_id": tech_id_assign, "desc": maint_task_desc, "status": "⏳ Pending", "assigned_by": u_name
                             })
-                            st.success("Allocated!")
-                            time.sleep(1)
                             st.rerun()
                 my_maint = get_filtered_data(st.session_state.maint_tasks, u_plant, u_role)
                 if my_maint: st.dataframe(pd.DataFrame(my_maint)[['tech_name', 'desc', 'status']], use_container_width=True)
@@ -407,10 +460,11 @@ else:
                             if tech_report and maint_media:
                                 task['status'], task['report'] = "✅ Completed", tech_report
                                 st.session_state.users_db[u_id]["points"] += 80
-                                st.success("Closed!")
-                                time.sleep(1)
                                 st.rerun()
 
+        # ------------------------------------------
+        # 📦 INVENTORY 
+        # ------------------------------------------
         with tab_parts:
             st.markdown("### 📦 Supply Chain & Inventory")
             if u_role == "Technician":
@@ -423,9 +477,6 @@ else:
                         target_machine = st.text_input("📍 Destination:")
                     if st.button("📤 TRANSMIT REQUEST", type="primary") and part_desc:
                         st.session_state.parts_requests.append({"ID": len(st.session_state.parts_requests)+1, "plant": u_plant, "Technician": u_name, "Part": part_desc, "SAP_No": sap_number, "Machine": target_machine, "Status": "⏳ Pending"})
-                        st.session_state.predicted_sap_number = "" 
-                        st.success("Transmitted!")
-                        time.sleep(1)
                         st.rerun()
                 my_parts = [p for p in st.session_state.parts_requests if p['Technician'] == u_name and p['plant'] == u_plant]
                 if my_parts: st.dataframe(pd.DataFrame(my_parts)[['Part', 'SAP_No', 'Status']], use_container_width=True)
@@ -440,13 +491,15 @@ else:
                             if r["ID"] == sel_id and r["plant"] == u_plant: r["Status"] = action
                         st.rerun()
 
+        # ------------------------------------------
+        # AI BRAIN & REELS
+        # ------------------------------------------
         with tab_brain:
             st.markdown("### 🧠 AI Knowledge Base")
             my_brain = get_filtered_data(st.session_state.plant_brain, u_plant, u_role)
             for entry in reversed(my_brain):
                 with st.container():
                     st.markdown(f"**📍 Source:** {entry['machine']} | **🔧 Fix:** {entry['fix']}")
-                    st.caption(f"By {entry['tech']}")
 
         with tab_reels:
             st.markdown("### 🎬 Operation Tutorials")
@@ -456,8 +509,6 @@ else:
                 if st.button("🚀 UPLOAD INTEL", type="primary") and reel_title and reel_file:
                     st.session_state.plant_reels.append({"plant": u_plant, "title": reel_title, "author": u_name, "video_bytes": reel_file.read()})
                     st.session_state.users_db[u_id]["points"] += 100
-                    st.success("Uploaded!")
-                    time.sleep(1)
                     st.rerun()
             my_reels = get_filtered_data(st.session_state.plant_reels, u_plant, u_role)
             for reel in reversed(my_reels):
