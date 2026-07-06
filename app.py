@@ -17,6 +17,8 @@ TELEGRAM_CHATS = {
     "Khamis Mushait": "-5104633079",
     "Al-Jouf": "-5176017884"
 }
+
+# أكواد الأمان للإدارة أثناء التسجيل
 PLANT_PASSWORDS = {"Al-Jumum": "Jumum123", "Al-Jouf": "Jouf123", "Khamis Mushait": "Khamis123"}
 HQ_PASSWORD = "Admin123" 
 
@@ -29,7 +31,7 @@ def send_telegram_message(text, plant):
     except: pass
 
 # ==========================================
-# 🎨 التصميم الإبداعي (Cyberpunk & Glassmorphism)
+# 🎨 التصميم الإبداعي 
 # ==========================================
 st.markdown("""
 <style>
@@ -59,13 +61,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🧠 تهيئة قواعد البيانات 
+# 🧠 تهيئة قواعد البيانات الأساسية
 # ==========================================
 if 'splash_done' not in st.session_state: st.session_state.splash_done = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'safety_ack' not in st.session_state: st.session_state.safety_ack = False 
 
-if 'users_db' not in st.session_state: st.session_state.users_db = {} 
+# 🗄️ قاعدة بيانات الحسابات (السرية والمعزولة)
+if 'registered_users' not in st.session_state: 
+    st.session_state.registered_users = {} 
+
 if 'parts_requests' not in st.session_state: st.session_state.parts_requests = []
 if 'wro_pool' not in st.session_state: st.session_state.wro_pool = [] 
 if 'fazaas' not in st.session_state: st.session_state.fazaas = [] 
@@ -76,7 +81,6 @@ if 'rolls_inventory' not in st.session_state: st.session_state.rolls_inventory =
 if 'plant_reels' not in st.session_state: st.session_state.plant_reels = []
 if 'maint_tasks' not in st.session_state: st.session_state.maint_tasks = []
 if 'predicted_sap_number' not in st.session_state: st.session_state.predicted_sap_number = ""
-if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 
 def get_filtered_data(data_list, current_plant, role):
     if role == "Director (HQ)": return data_list 
@@ -104,7 +108,7 @@ if not st.session_state.splash_done:
     st.rerun()
 
 # ==========================================
-# 2. LOGIN SYSTEM (تحديث حفظ الأقسام)
+# 2. 🔐 AUTHENTICATION SYSTEM (التسجيل والدخول)
 # ==========================================
 elif not st.session_state.logged_in:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -112,41 +116,78 @@ elif not st.session_state.logged_in:
     with col2:
         with st.container():
             st.markdown("<h2 style='text-align:center;'>🔒 Secure Plant Gateway</h2>", unsafe_allow_html=True)
-            st.markdown("---")
             
-            emp_name = st.text_input("👤 Operator Name", placeholder="e.g., Ahmed")
-            emp_id = st.text_input("💳 Access ID", placeholder="e.g., 10452")
+            tab_login, tab_register = st.tabs(["🔑 Login (تسجيل دخول)", "📝 Sign Up (إنشاء حساب)"])
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                plant = st.selectbox("🏭 Plant Node", ["Al-Jumum", "Khamis Mushait", "Al-Jouf"])
-                role = st.selectbox("🔑 Clearance Level", ["Technician", "Manager", "Director (HQ)"])
-            with col_b:
-                if role == "Technician":
-                    department = st.selectbox("🛠️ Division (القسم)", ["Mechanical", "Electrical", "Welding", "Operations", "Workshop"])
-                    password = ""
-                elif role == "Manager":
-                    department = "Management"
-                    password = st.text_input("🛡️ Manager Code", type="password")
-                else: 
-                    department = "HQ"
-                    password = st.text_input("🛡️ HQ Master Code", type="password")
+            # --- تبويب إنشاء الحساب ---
+            with tab_register:
+                st.markdown("#### Create a New Profile")
+                reg_name = st.text_input("👤 Full Name:", key="reg_name")
+                reg_id = st.text_input("💳 Employee ID:", key="reg_id")
+                reg_pass = st.text_input("🛡️ Create Password:", type="password", key="reg_pass")
+                
+                col_r1, col_r2 = st.columns(2)
+                with col_r1:
+                    reg_plant = st.selectbox("🏭 Plant Node:", ["Al-Jumum", "Khamis Mushait", "Al-Jouf"], key="reg_plant")
+                    reg_role = st.selectbox("🔑 Role:", ["Technician", "Manager", "Director (HQ)"], key="reg_role")
+                with col_r2:
+                    if reg_role == "Technician":
+                        reg_dept = st.selectbox("🛠️ Department:", ["Mechanical", "Electrical", "Welding", "Operations", "Workshop"], key="reg_dept")
+                        reg_auth_code = ""
+                    elif reg_role == "Manager":
+                        reg_dept = "Management"
+                        reg_auth_code = st.text_input("🔑 Manager Auth Code (Required):", type="password", key="reg_auth_mgr")
+                    else:
+                        reg_dept = "HQ"
+                        reg_auth_code = st.text_input("🔑 HQ Auth Code (Required):", type="password", key="reg_auth_hq")
+                
+                if st.button("Create Account ✅", type="primary", use_container_width=True):
+                    if not reg_name or not reg_id or not reg_pass:
+                        st.error("⚠️ All fields (Name, ID, Password) are mandatory.")
+                    elif reg_id in st.session_state.registered_users:
+                        st.error("❌ Employee ID already exists! Please Login.")
+                    elif reg_role == "Manager" and reg_auth_code != PLANT_PASSWORDS.get(reg_plant):
+                        st.error("❌ Invalid Manager Authorization Code!")
+                    elif reg_role == "Director (HQ)" and reg_auth_code != HQ_PASSWORD:
+                        st.error("❌ Invalid HQ Authorization Code!")
+                    else:
+                        # حفظ المستخدم في قاعدة البيانات بصفر نقاط!
+                        st.session_state.registered_users[reg_id] = {
+                            "name": reg_name,
+                            "password": reg_pass,
+                            "plant": reg_plant,
+                            "role": reg_role,
+                            "dept": reg_dept,
+                            "points": 0,          # النقاط تبدأ من صفر دائماً
+                            "chat_history": []    # محادثات معزولة لكل موظف
+                        }
+                        st.success("✅ Account Created Successfully! Please Login.")
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("INITIALIZE CONNECTION 🚀", type="primary", use_container_width=True):
-                if not emp_name or not emp_id:
-                    st.error("⚠️ Credentials Required.")
-                elif role == "Manager" and password != PLANT_PASSWORDS.get(plant): 
-                    st.error("❌ Invalid Manager Code!")
-                elif role == "Director (HQ)" and password != HQ_PASSWORD:
-                    st.error("❌ Invalid HQ Code!")
-                else:
-                    # حفظ بيانات الفني مع قسمه
-                    if emp_id not in st.session_state.users_db:
-                        st.session_state.users_db[emp_id] = {"points": random.randint(100, 250), "plant": plant, "name": emp_name, "dept": department, "role": role}
-                    st.session_state.user_info = {"name": emp_name, "id": emp_id, "plant": plant, "dept": department, "role": role}
-                    st.session_state.logged_in = True
-                    st.rerun()
+            # --- تبويب تسجيل الدخول ---
+            with tab_login:
+                st.markdown("#### Access Your Profile")
+                log_id = st.text_input("💳 Employee ID:", key="log_id")
+                log_pass = st.text_input("🛡️ Password:", type="password", key="log_pass")
+                
+                if st.button("LOGIN 🚀", type="primary", use_container_width=True):
+                    if not log_id or not log_pass:
+                        st.error("⚠️ Enter ID and Password.")
+                    elif log_id not in st.session_state.registered_users:
+                        st.error("❌ ID not found. Please Sign Up first.")
+                    elif st.session_state.registered_users[log_id]['password'] != log_pass:
+                        st.error("❌ Incorrect Password.")
+                    else:
+                        # تسجيل الدخول بنجاح وسحب بيانات المستخدم من قاعدة البيانات
+                        user_data = st.session_state.registered_users[log_id]
+                        st.session_state.user_info = {
+                            "id": log_id,
+                            "name": user_data["name"],
+                            "plant": user_data["plant"],
+                            "role": user_data["role"],
+                            "dept": user_data["dept"]
+                        }
+                        st.session_state.logged_in = True
+                        st.rerun()
 
 # ==========================================
 # 3. SAFETY TOOLBOX TALK
@@ -167,12 +208,15 @@ elif not st.session_state.safety_ack and st.session_state.user_info['role'] != "
 # 4. MAIN APPLICATION
 # ==========================================
 else:
-    u_name = st.session_state.user_info['name']
+    # جلب بيانات الموظف الحيّة من قاعدة البيانات
     u_id = st.session_state.user_info['id']
-    u_plant = st.session_state.user_info['plant']
-    u_dept = st.session_state.user_info['dept']
-    u_role = st.session_state.user_info['role']
-    u_points = st.session_state.users_db[u_id]["points"]
+    u_data = st.session_state.registered_users[u_id]
+    
+    u_name = u_data['name']
+    u_plant = u_data['plant']
+    u_dept = u_data['dept']
+    u_role = u_data['role']
+    u_points = u_data['points']
     
     # --- Sidebar ---
     st.sidebar.markdown(f"## {'🌐 Global HQ' if u_role == 'Director (HQ)' else f'🏭 {u_plant} Node'}")
@@ -226,30 +270,35 @@ else:
                         with st.spinner("AI taking control..."):
                             time.sleep(1)
                             st.session_state.parts_requests.append({"ID": random.randint(100, 999), "plant": u_plant if u_role == "Manager" else "Al-Jumum", "Technician": "AI System", "Part": "Main Shaft Bearing", "SAP_No": "1040092", "Machine": "Mill C", "Status": "SAP PO Triggered 🔄"})
-                            # إرسال العطل لقسم الميكانيكا فقط!
                             st.session_state.wro_pool.append({"id": random.randint(1000, 9999), "plant": u_plant if u_role == "Manager" else "Al-Jumum", "target_dept": "Mechanical", "machine": "Mill C", "issue": "PREDICTIVE: Replace Bearing", "status": "Pending"})
                             send_telegram_message(f"🤖 <b>AI AUTOPILOT ACTIVATED</b>\n📍 Mill C\n✅ SAP PR Generated.\n✅ WRO Dispatched to [Mechanical] Dept.", u_plant if u_role == "Manager" else "Al-Jumum")
                             st.success("✅ AI Autopilot executed successfully!")
 
     # ==========================================
-    # 🤖 PLANT-GPT 
+    # 🤖 PLANT-GPT (معزول لكل مستخدم!)
     # ==========================================
     if u_role in ["Director (HQ)", "Manager", "Technician"]:
         with tab_gpt:
             st.markdown("### 🤖 Plant-GPT (MMC AI Assistant)")
             st.caption("Ask anything about plant history, SAP stock, or maintenance procedures.")
-            for chat in st.session_state.chat_history:
+            
+            # جلب محادثات هذا الموظف فقط
+            my_chat_history = st.session_state.registered_users[u_id]['chat_history']
+            for chat in my_chat_history:
                 st.markdown(f"**🧑‍🔧 You:** {chat['user']}")
                 st.markdown(f"<div class='chat-bubble'>🤖 <b>Plant-GPT:</b> {chat['ai']}</div>", unsafe_allow_html=True)
+                
             user_q = st.text_input("Type your question here:")
             if st.button("Ask Plant-GPT ✨", type="primary"):
                 if user_q:
                     with st.spinner("🧠 Searching Plant Brain & SAP..."):
                         time.sleep(1.5)
-                        if "pump" in user_q.lower(): ai_resp = "Based on our records, خالد fixed Pump B 3 months ago by replacing the Mechanical Seal (SAP: 104558). Do you want me to order it for you?"
+                        if "pump" in user_q.lower(): ai_resp = "Based on our records, Khalid fixed Pump B 3 months ago by replacing the Mechanical Seal (SAP: 104558)."
                         elif "sap" in user_q.lower() or "stock" in user_q.lower(): ai_resp = "I checked S/4HANA. We currently have 15 Thermal Pastes and 2 Bearings (Critical Low)."
                         else: ai_resp = "I have scanned the manuals. Ensure you apply LOTO first, then check the main drive belt tension."
-                        st.session_state.chat_history.append({"user": user_q, "ai": ai_resp})
+                        
+                        # حفظ المحادثة في ملف الموظف الشخصي
+                        st.session_state.registered_users[u_id]['chat_history'].append({"user": user_q, "ai": ai_resp})
                         st.rerun()
 
     # ==========================================
@@ -261,7 +310,7 @@ else:
             c1.metric("Global Health", "96.4%", "+1.2% YTD")
             c2.metric("Prevented Downtime", "$145K", "+$22K")
             c3.metric("Pending WROs", len(st.session_state.wro_pool), "-2", delta_color="inverse")
-            c4.metric("Active Tech Fleet", len(st.session_state.users_db))
+            c4.metric("Registered Accounts", len(st.session_state.registered_users))
 
         with tab_radar:
             st.markdown("### 🚨 Global Emergency Radar")
@@ -291,12 +340,10 @@ else:
             c2.metric("✅ Tasks Logged", len(get_filtered_data(st.session_state.shift_log, u_plant, u_role)))
             c3.metric("📅 Maint. Closed", len([t for t in my_maint if t['status'] == 'Completed']))
 
-            # --- رادار الأقسام الجديد للمدير ---
             st.markdown("#### 🏢 Department Performance Matrix")
-            plant_users = [v for k, v in st.session_state.users_db.items() if v["plant"] == u_plant and v["role"] == "Technician"]
+            plant_users = [v for k, v in st.session_state.registered_users.items() if v["plant"] == u_plant and v["role"] == "Technician"]
             if plant_users:
                 df_depts = pd.DataFrame(plant_users)
-                # تجميع البيانات حسب القسم
                 dept_stats = df_depts.groupby('dept').agg(Techs=('name', 'count'), Total_Points=('points', 'sum')).reset_index()
                 st.dataframe(dept_stats, use_container_width=True)
             else:
@@ -312,7 +359,7 @@ else:
                     st.success("✅ PR successfully injected into SAP.")
 
     # ==========================================
-    # 🎯 ACTION HUB & DISPATCH (تحديث توجيه الأقسام)
+    # 🎯 ACTION HUB & DISPATCH
     # ==========================================
     if u_role in ["Manager", "Technician"]:
         with tab_action:
@@ -322,35 +369,29 @@ else:
                 with col1:
                     wro_mac = st.text_input("📍 Equipment/Location:")
                     wro_desc = st.text_input("⚠️ Fault Signature:")
-                    # المدير يختار القسم المطلوب
                     wro_target_dept = st.selectbox("🎯 Target Department:", ["All", "Mechanical", "Electrical", "Welding", "Operations", "Workshop"])
                     
                     if st.button("📢 DISPATCH WRO", type="primary", use_container_width=True) and wro_mac:
                         st.session_state.wro_pool.append({"id": random.randint(1000, 9999), "plant": u_plant, "target_dept": wro_target_dept, "machine": wro_mac, "issue": wro_desc, "status": "Pending"})
                         send_telegram_message(f"🚨 <b>CRITICAL WRO [{wro_target_dept}]</b>\n📍 {wro_mac}\n⚠️ {wro_desc}", u_plant)
-                        st.success("Dispatched!")
-                        time.sleep(1)
                         st.rerun()
                 with col2:
                     bnty_desc = st.text_input("📌 Objective:")
                     bnty_pts = st.slider("⭐ Reward:", 10, 100, 30, step=10)
                     if st.button("💸 POST BOUNTY", use_container_width=True) and bnty_desc:
                         st.session_state.bounties.append({"id": random.randint(1000,9999), "plant": u_plant, "desc": bnty_desc, "points": bnty_pts})
-                        send_telegram_message(f"💰 <b>NEW BOUNTY</b>\n📌 {bnty_desc} | ⭐ {bnty_pts} PTS", u_plant)
                         st.rerun()
             else:
                 st.markdown("### 🎯 Live Grid")
-                
-                # الفزعة
                 st.markdown("#### 🤝 Faza'a (Quick Assist)")
                 with st.expander("Need help? Request Backup (+15 PTS)"):
                     fz_loc = st.text_input("📍 Your Location:", key="fz_loc")
                     fz_need = st.text_input("🙋‍♂️ What do you need?", key="fz_need")
-                    if st.button("📢 Call for Faza'a", type="primary"):
-                        if fz_loc and fz_need:
-                            st.session_state.fazaas.append({"id": random.randint(10,99), "plant": u_plant, "req": u_name, "loc": fz_loc, "need": fz_need})
-                            send_telegram_message(f"🤝 <b>Faza'a Needed!</b>\n📍 {fz_loc}\n🙋‍♂️ {u_name} needs: {fz_need}", u_plant)
-                            st.rerun()
+                    if st.button("📢 Call for Faza'a", type="primary") and fz_loc:
+                        st.session_state.fazaas.append({"id": random.randint(10,99), "plant": u_plant, "req": u_name, "loc": fz_loc, "need": fz_need})
+                        send_telegram_message(f"🤝 <b>Faza'a Needed!</b>\n📍 {fz_loc}\n🙋‍♂️ {u_name} needs: {fz_need}", u_plant)
+                        st.rerun()
+                
                 my_fazaas = get_filtered_data(st.session_state.fazaas, u_plant, u_role)            
                 if my_fazaas:
                     for fz in my_fazaas:
@@ -358,15 +399,13 @@ else:
                             with st.container():
                                 st.warning(f"**{fz['req']}** at **{fz['loc']}** needs: {fz['need']}")
                                 if st.button(f"🏃‍♂️ I'm coming! (+15 pts)", key=f"fz_{fz['id']}"):
-                                    st.session_state.users_db[u_id]["points"] += 15
+                                    st.session_state.registered_users[u_id]["points"] += 15
                                     st.session_state.fazaas.remove(fz)
                                     send_telegram_message(f"✅ <b>Faza'a Accepted!</b>\n{u_name} is going to help {fz['req']}.", u_plant)
                                     st.rerun()
 
-                # عرض الأعطال المخصصة لقسم الفني فقط أو للجميع!
                 st.markdown(f"#### 🚨 Active Anomalies (For Dept: {u_dept})")
                 my_wros = [w for w in st.session_state.wro_pool if w['plant'] == u_plant and w.get('target_dept', 'All') in ['All', u_dept]]
-                
                 if not my_wros: st.info("No WROs assigned to your department right now.")
                 for wro in my_wros:
                     with st.container():
@@ -383,9 +422,8 @@ else:
                     with st.container():
                         st.write(f"**📌 {b['desc']}** | ⭐ {b['points']} PTS")
                         if st.button("✅ CLAIM", key=f"bnty_{b['id']}"):
-                            st.session_state.users_db[u_id]["points"] += b['points'] 
+                            st.session_state.registered_users[u_id]["points"] += b['points'] 
                             st.session_state.bounties.remove(b)
-                            send_telegram_message(f"✅ <b>Bounty Claimed!</b>\n👨‍🔧 By: {u_name}\n📌 {b['desc']}", u_plant)
                             st.rerun()
 
         # ==========================================
@@ -400,11 +438,10 @@ else:
             proof_media = st.file_uploader("📸 Upload execution proof", type=["jpg", "png", "mp4"])
             if st.button("✅ COMMIT TO LOG (+50 PTS)", type="primary", use_container_width=True):
                 if machine_name and issue_desc and proof_media:
-                    st.session_state.users_db[u_id]["points"] += 50 
+                    st.session_state.registered_users[u_id]["points"] += 50 
                     st.session_state.shift_log.append({"plant": u_plant, "log": f"[{task_type[:5]}] {machine_name} ({u_dept})", "user": u_name})
                     if "WRO" in task_type:
                         st.session_state.plant_brain.append({"plant": u_plant, "date": datetime.now().strftime("%Y-%m-%d"), "machine": machine_name, "fix": issue_desc, "tech": u_name})
-                    send_telegram_message(f"✅ <b>Task Completed!</b>\n🏭 Plant: {u_plant}\n📍 Machine: {machine_name}\n👨‍🔧 Tech: {u_name} ({u_dept})\n📸 <i>Proof Uploaded</i>", u_plant)
                     st.success("Task logged!")
                     time.sleep(1)
                     st.rerun()
@@ -422,25 +459,19 @@ else:
                     st.markdown("#### ➕ Add Ready Roll")
                     roll_sn = st.text_input("🔢 Serial Number:")
                     roll_type = st.selectbox("🛠️ Roll Type:", ["Break Roll", "Reduction Roll", "Smooth Roll"])
-                    if st.button("💾 Save Roll", type="primary"):
-                        if roll_sn:
-                            st.session_state.rolls_inventory.append({"id": random.randint(10000, 99999), "plant": u_plant, "serial": roll_sn, "type": roll_type, "status": "🟢 Ready", "machine": "-", "install_date": None})
-                            st.success("Saved!")
-                            time.sleep(1)
-                            st.rerun()
+                    if st.button("💾 Save Roll", type="primary") and roll_sn:
+                        st.session_state.rolls_inventory.append({"id": random.randint(10000, 99999), "plant": u_plant, "serial": roll_sn, "type": roll_type, "status": "🟢 Ready", "machine": "-", "install_date": None})
+                        st.rerun()
                 with col_r2:
                     st.markdown("#### 🔧 Install Roll")
                     ready_rolls = [r for r in my_rolls if r['status'] == '🟢 Ready']
-                    if not ready_rolls: st.info("No ready rolls.")
-                    else:
+                    if ready_rolls:
                         selected_roll_sn = st.selectbox("Select Roll:", [r['serial'] for r in ready_rolls])
                         target_machine = st.text_input("📍 Machine Name:", key="roll_mac")
                         if st.button("⚙️ Confirm Install", type="primary") and target_machine:
                             for r in st.session_state.rolls_inventory:
                                 if r['serial'] == selected_roll_sn and r['plant'] == u_plant:
                                     r['status'], r['machine'], r['install_date'] = "🔴 Installed", target_machine, datetime.now().strftime("%Y-%m-%d")
-                            st.success("Installed!")
-                            time.sleep(1)
                             st.rerun()
 
             st.markdown("#### 🔴 Active Rolls (Lifespan Tracker)")
@@ -477,7 +508,7 @@ else:
                         if st.button("✅ CLOSE WORK ORDER", key=f"btn_{task['id']}", type="primary"):
                             if tech_report and maint_media:
                                 task['status'], task['report'] = "✅ Completed", tech_report
-                                st.session_state.users_db[u_id]["points"] += 80
+                                st.session_state.registered_users[u_id]["points"] += 80
                                 st.rerun()
 
         # ==========================================
@@ -528,7 +559,7 @@ else:
                     reel_file = st.file_uploader("Upload Video", type=["mp4"])
                     if st.button("🚀 UPLOAD INTEL", type="primary") and reel_title and reel_file:
                         st.session_state.plant_reels.append({"plant": u_plant, "title": reel_title, "author": u_name, "video_bytes": reel_file.read()})
-                        st.session_state.users_db[u_id]["points"] += 100
+                        st.session_state.registered_users[u_id]["points"] += 100
                         st.rerun()
                 my_reels = get_filtered_data(st.session_state.plant_reels, u_plant, u_role)
                 for reel in reversed(my_reels):
