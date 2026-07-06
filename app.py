@@ -20,7 +20,7 @@ TELEGRAM_CHATS = {
 PLANT_PASSWORDS = {
     "Al-Jumum": "Jumum123", "Al-Jouf": "Jouf123", "Khamis Mushait": "Khamis123"
 }
-HQ_PASSWORD = "Admin123" # باسوورد الإدارة العليا
+HQ_PASSWORD = "Admin123" 
 
 def send_telegram_message(text, plant):
     chat_id = TELEGRAM_CHATS.get(plant)
@@ -56,6 +56,7 @@ st.markdown("""
     }
     @keyframes blinker { 50% { opacity: 0.2; } }
     div[data-testid="stMetricValue"] { font-size: 2em !important; color: #00f2fe !important; }
+    .hq-title { color: #f39c12; font-size: 1.5em; border-bottom: 1px solid #f39c12; padding-bottom: 10px; margin-bottom: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,10 +67,7 @@ if 'splash_done' not in st.session_state: st.session_state.splash_done = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'safety_ack' not in st.session_state: st.session_state.safety_ack = False 
 
-# تخزين اليوزرات مع نقاطهم ومحطاتهم
 if 'users_db' not in st.session_state: st.session_state.users_db = {} 
-
-# قواعد البيانات الأساسية (كل سجل سيحتوي على مفتاح "plant" للفرز)
 if 'parts_requests' not in st.session_state: st.session_state.parts_requests = []
 if 'wro_pool' not in st.session_state: st.session_state.wro_pool = [] 
 if 'fazaas' not in st.session_state: st.session_state.fazaas = [] 
@@ -81,10 +79,8 @@ if 'plant_reels' not in st.session_state: st.session_state.plant_reels = []
 if 'maint_tasks' not in st.session_state: st.session_state.maint_tasks = []
 if 'predicted_sap_number' not in st.session_state: st.session_state.predicted_sap_number = ""
 
-# دالة مساعدة لفلترة البيانات حسب الصلاحية والمحطة
 def get_filtered_data(data_list, current_plant, role):
-    if role == "Director (HQ)":
-        return data_list # المسؤول الكبير يشوف كل شيء
+    if role == "Director (HQ)": return data_list 
     return [item for item in data_list if item.get('plant') == current_plant]
 
 # ==========================================
@@ -128,7 +124,7 @@ elif not st.session_state.logged_in:
                 elif role == "Manager":
                     department = "Management"
                     password = st.text_input("🛡️ Override Code (Password)", type="password")
-                else: # Director
+                else: 
                     department = "HQ"
                     password = st.text_input("🛡️ HQ Master Code", type="password")
             
@@ -148,7 +144,7 @@ elif not st.session_state.logged_in:
                     st.rerun()
 
 # ==========================================
-# 3. SAFETY TOOLBOX TALK (فقط للفني والمدير)
+# 3. SAFETY TOOLBOX TALK
 # ==========================================
 elif not st.session_state.safety_ack and st.session_state.user_info['role'] != "Director (HQ)":
     u_name = st.session_state.user_info['name']
@@ -194,12 +190,16 @@ else:
         st.rerun()
 
     # --- Header ---
-    st.markdown(f"<h1 style='color:white;'>Welcome, {u_name} 👋</h1>", unsafe_allow_html=True)
+    if u_role == "Director (HQ)":
+        st.markdown(f"<h1 style='color:#f39c12;'>🌐 Executive Global View: {u_name}</h1>", unsafe_allow_html=True)
+        st.caption("Central Command for Al-Jumum, Khamis Mushait, and Al-Jouf Operations.")
+    else:
+        st.markdown(f"<h1 style='color:white;'>Welcome, {u_name} 👋</h1>", unsafe_allow_html=True)
     
     # --- Tabs Setup ---
     if u_role == "Director (HQ)":
-        tabs = st.tabs(["🌐 Global Command", "🔗 SAP Bridge", "🛠️ HQ Dispatch", "📊 Reports & DBs"])
-        tab_global, tab_sap, tab_hq, tab_reports = tabs
+        tabs = st.tabs(["🌐 Global KPIs", "🚨 Emergency Radar", "📦 Supply Chain (SAP)", "📊 Fleet & Leaderboard"])
+        tab_kpis, tab_radar, tab_sap_hq, tab_fleet = tabs
     elif u_role == "Manager":
         tabs = st.tabs(["📊 Command Center", "🔗 SAP Bridge", "🛠️ Dispatch", "📝 Log Task", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
         tab_dash, tab_sap, tab_action, tab_log, tab_maint, tab_parts, tab_brain, tab_reels = tabs
@@ -207,81 +207,91 @@ else:
         tabs = st.tabs(["🎯 Action Hub", "📝 Log Task", "📅 Maint. Day", "📦 Inventory", "🧠 AI Brain", "🎬 Tutorials"])
         tab_action, tab_log, tab_maint, tab_parts, tab_brain, tab_reels = tabs
 
-    # ------------------------------------------
-    # DIRECTOR (HQ) VIEW - مركز القيادة الموحد
-    # ------------------------------------------
+    # ==========================================
+    # 🌐 DIRECTOR (HQ) EXCLUSIVE VIEWS
+    # ==========================================
     if u_role == "Director (HQ)":
-        with tab_global:
-            st.markdown("### 🌐 Global HQ Operations")
+        # 1. GLOBAL KPIs & CHARTS
+        with tab_kpis:
+            st.markdown("<div class='hq-title'>📈 High-Level Financial & Operational KPIs</div>", unsafe_allow_html=True)
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("🚨 Total Active WROs", len(st.session_state.wro_pool))
-            c2.metric("✅ Total Tasks Logged", len(st.session_state.shift_log))
-            c3.metric("📦 Pending SAP Parts", len([p for p in st.session_state.parts_requests if 'Pending' in p['Status']]))
-            c4.metric("👨‍🔧 Active Techs", len(st.session_state.users_db))
+            c1.metric("Global Health Index", "96.4%", "+1.2% YTD")
+            c2.metric("Total Prevented Downtime", "$145K", "+$22K this month")
+            c3.metric("Pending WROs (All Plants)", len(st.session_state.wro_pool), "Action Required", delta_color="inverse")
+            c4.metric("Active Tech Fleet", len(st.session_state.users_db), "Personnel")
             
-            st.markdown("#### 🌍 Plants Live Status")
-            col_p1, col_p2, col_p3 = st.columns(3)
-            with col_p1:
-                st.info("🏭 **Al-Jumum**\nWROs: " + str(len(get_filtered_data(st.session_state.wro_pool, "Al-Jumum", ""))))
-            with col_p2:
-                st.warning("🏭 **Khamis Mushait**\nWROs: " + str(len(get_filtered_data(st.session_state.wro_pool, "Khamis Mushait", ""))))
-            with col_p3:
-                st.success("🏭 **Al-Jouf**\nWROs: " + str(len(get_filtered_data(st.session_state.wro_pool, "Al-Jouf", ""))))
-                
-        with tab_sap:
-            st.markdown("### 🔗 Global SAP S/4HANA Middleware")
-            st.error("⚠️ **Critical Threshold:** Bearings 6004-2RS (Mat #1040092) - Stock: 2 PCs [Al-Jumum]")
-            if st.button("⚡ EXECUTE SAP PR INJECTION FOR AL-JUMUM", type="primary"):
-                with st.spinner("Authenticating Token..."):
-                    time.sleep(1)
-                    st.success("✅ 201 Created: PR #500012489 injected for Al-Jumum.")
-                    
-        with tab_hq:
-            st.markdown("### 🛠️ Cross-Plant Dispatch")
-            with st.container():
-                hq_plant_target = st.selectbox("Select Target Plant:", ["Al-Jumum", "Khamis Mushait", "Al-Jouf"])
-                hq_wro_mac = st.text_input("📍 Equipment/Location:")
-                hq_wro_desc = st.text_input("⚠️ Fault Signature:")
-                if st.button("📢 DISPATCH WRO FROM HQ", type="primary"):
-                    st.session_state.wro_pool.append({"id": random.randint(1000, 9999), "plant": hq_plant_target, "machine": hq_wro_mac, "issue": hq_wro_desc, "status": "Pending"})
-                    send_telegram_message(f"🚨 <b>HQ DIRECT WRO</b>\n📍 {hq_wro_mac}\n⚠️ {hq_wro_desc}", hq_plant_target)
-                    st.success(f"Dispatched to {hq_plant_target}!")
-                    
-        with tab_reports:
-            st.markdown("### 📊 Consolidated Databases")
-            st.markdown("#### All Parts Requests")
-            st.dataframe(pd.DataFrame(st.session_state.parts_requests), use_container_width=True)
-            st.markdown("#### All Maint. Tasks")
-            st.dataframe(pd.DataFrame(st.session_state.maint_tasks), use_container_width=True)
+            st.markdown("---")
+            st.markdown("#### 📊 Cross-Plant Performance Analytics")
+            
+            # تجهيز بيانات الرسم البياني للمحطات
+            p_jumum = len([x for x in st.session_state.shift_log if x.get('plant') == 'Al-Jumum'])
+            p_khamis = len([x for x in st.session_state.shift_log if x.get('plant') == 'Khamis Mushait'])
+            p_jouf = len([x for x in st.session_state.shift_log if x.get('plant') == 'Al-Jouf'])
+            
+            chart_data = pd.DataFrame({
+                "Completed Tasks": [p_jumum, p_khamis, p_jouf]
+            }, index=["Al-Jumum", "Khamis Mushait", "Al-Jouf"])
+            
+            col_ch1, col_ch2 = st.columns([2, 1])
+            with col_ch1:
+                st.bar_chart(chart_data, use_container_width=True)
+            with col_ch2:
+                with st.container():
+                    st.info(f"**Al-Jumum:** {p_jumum} Tasks")
+                    st.warning(f"**Khamis Mushait:** {p_khamis} Tasks")
+                    st.success(f"**Al-Jouf:** {p_jouf} Tasks")
 
-    # ------------------------------------------
-    # COMMAND CENTER (Manager)
-    # ------------------------------------------
+        # 2. EMERGENCY RADAR
+        with tab_radar:
+            st.markdown("<div class='hq-title'>🚨 Global Emergency Radar (Live WROs)</div>", unsafe_allow_html=True)
+            if not st.session_state.wro_pool:
+                st.success("✅ All plants are clear. No active emergencies reported across the grid.")
+            else:
+                for wro in st.session_state.wro_pool:
+                    with st.container():
+                        st.error(f"**⚠️ EMERGENCY IN {wro['plant'].upper()}**")
+                        st.markdown(f"**📍 Location:** {wro['machine']} | **Signature:** {wro['issue']}")
+
+        # 3. GLOBAL SUPPLY CHAIN (SAP)
+        with tab_sap_hq:
+            st.markdown("<div class='hq-title'>🔗 Global SAP & Supply Chain Overview</div>", unsafe_allow_html=True)
+            st.markdown("Monitor pending parts requests across all operational nodes.")
+            if not st.session_state.parts_requests:
+                st.info("No pending supply chain requests.")
+            else:
+                df_hq_parts = pd.DataFrame(st.session_state.parts_requests)
+                st.dataframe(df_hq_parts[['plant', 'Part', 'SAP_No', 'Status', 'Technician']], use_container_width=True)
+
+        # 4. FLEET & LEADERBOARD
+        with tab_fleet:
+            st.markdown("<div class='hq-title'>🏆 Global Workforce Leaderboard</div>", unsafe_allow_html=True)
+            st.caption("Top performing technicians across the entire company based on merit points.")
+            if st.session_state.users_db:
+                hq_leaders = [{"Name": v["name"], "Plant": v["plant"], "Total Points": v["points"]} for k, v in st.session_state.users_db.items()]
+                df_hq_leaders = pd.DataFrame(hq_leaders).sort_values(by="Total Points", ascending=False).reset_index(drop=True)
+                st.dataframe(df_hq_leaders, use_container_width=True)
+            else:
+                st.info("No workforce data available yet.")
+
+    # ==========================================
+    # 🏭 MANAGER & TECHNICIAN VIEWS (نفس ما كانت عليه وتعمل بشكل مثالي)
+    # ==========================================
     if u_role == "Manager":
         with tab_dash:
             my_wros = get_filtered_data(st.session_state.wro_pool, u_plant, u_role)
             my_logs = get_filtered_data(st.session_state.shift_log, u_plant, u_role)
             my_maint = get_filtered_data(st.session_state.maint_tasks, u_plant, u_role)
-            
             st.markdown(f"### 📊 {u_plant} Operations Metrics")
             c1, c2, c3 = st.columns(3)
             c1.metric("🚨 Active WROs", len(my_wros), "Critical", delta_color="inverse")
             c2.metric("✅ Tasks Logged", len(my_logs), "+12%")
             c3.metric("📅 Maint. Closed", len([t for t in my_maint if t['status'] == 'Completed']))
-            
             st.markdown("#### 🏆 Plant Leaderboard")
-            # نجلب فقط موظفين نفس المحطة
             leaders_data = [{"Tech ID": k, "Points": v["points"], "Name": v["name"]} for k, v in st.session_state.users_db.items() if v["plant"] == u_plant]
             if leaders_data:
                 df_leaders = pd.DataFrame(leaders_data).sort_values(by="Points", ascending=False).reset_index(drop=True)
                 st.dataframe(df_leaders, use_container_width=True)
-            else:
-                st.info("No active users in this plant yet.")
 
-    # ------------------------------------------
-    # 🔗 SAP BRIDGE (Manager)
-    # ------------------------------------------
-    if u_role == "Manager":
         with tab_sap:
             st.markdown("### 🔗 SAP S/4HANA Middleware")
             st.markdown("<div style='margin-bottom:15px;'><span class='blinking-dot'></span> <b>Status:</b> OData Active</div>", unsafe_allow_html=True)
@@ -290,17 +300,13 @@ else:
                 if st.button("⚡ EXECUTE SAP PR INJECTION", type="primary"):
                     with st.spinner("Constructing JSON Payload..."):
                         time.sleep(1.5)
-                        st.success("✅ 201 Created: PR #500012489 successfully injected into SAP.")
+                        st.success("✅ 201 Created: PR successfully injected into SAP.")
                         send_telegram_message(f"🔗 <b>SAP Auto-System</b>\nGenerated PR for Material 1040092.", u_plant)
 
-    # ------------------------------------------
-    # ACTION HUB (WROs & Bounties)
-    # ------------------------------------------
     if u_role in ["Manager", "Technician"]:
         with tab_action:
             my_wros = get_filtered_data(st.session_state.wro_pool, u_plant, u_role)
             my_bounties = get_filtered_data(st.session_state.bounties, u_plant, u_role)
-            
             if u_role == "Manager":
                 st.markdown("### 🛠️ Dispatch Matrix")
                 col1, col2 = st.columns(2)
@@ -335,7 +341,6 @@ else:
                             st.success("Task bound to your ID.")
                             time.sleep(1)
                             st.rerun()
-
                 st.markdown("#### 💰 Bounty Board")
                 if not my_bounties: st.info("No bounties.")
                 for b in my_bounties:
@@ -348,21 +353,15 @@ else:
                             time.sleep(1)
                             st.rerun()
 
-    # ------------------------------------------
-    # TASK LOGGING
-    # ------------------------------------------
-    if u_role in ["Manager", "Technician"]:
         with tab_log:
             st.markdown("### 📝 Log Execution")
-            task_type = st.radio("Task Classification", ["🔴 WRO", "🟢 PRO"], horizontal=True, label_visibility="collapsed")
+            task_type = st.radio("Classification", ["🔴 WRO", "🟢 PRO"], horizontal=True, label_visibility="collapsed")
             with st.container():
                 col1, col2 = st.columns(2)
                 with col1: machine_name = st.text_input("📍 Equipment:")
                 with col2: issue_desc = st.text_area("📝 Details:")
             with st.container():
-                st.markdown("#### 📸 Visual Evidence (Mandatory)")
-                proof_media = st.file_uploader("Upload execution proof", type=["jpg", "png", "mp4"])
-                
+                proof_media = st.file_uploader("📸 Upload execution proof", type=["jpg", "png", "mp4"])
             if st.button("✅ COMMIT TO LOG (+50 PTS)", type="primary", use_container_width=True):
                 if machine_name and issue_desc and proof_media:
                     st.session_state.users_db[u_id]["points"] += 50 
@@ -373,12 +372,8 @@ else:
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("⚠️ All fields and proof are mandatory.")
+                    st.error("⚠️ Fields and proof are mandatory.")
 
-    # ------------------------------------------
-    # MAINTENANCE DAY
-    # ------------------------------------------
-    if u_role in ["Manager", "Technician"]:
         with tab_maint:
             st.markdown("### 📅 Planned Maintenance Outage")
             if u_role == "Manager":
@@ -400,7 +395,6 @@ else:
                             st.rerun()
                 my_maint = get_filtered_data(st.session_state.maint_tasks, u_plant, u_role)
                 if my_maint: st.dataframe(pd.DataFrame(my_maint)[['tech_name', 'desc', 'status']], use_container_width=True)
-
             else: 
                 my_tasks = [t for t in st.session_state.maint_tasks if t['tech_id'] == u_id and t['plant'] == u_plant and "Pending" in t['status']]
                 if not my_tasks: st.success("No active directives.")
@@ -417,10 +411,6 @@ else:
                                 time.sleep(1)
                                 st.rerun()
 
-    # ------------------------------------------
-    # 📦 INVENTORY 
-    # ------------------------------------------
-    if u_role in ["Manager", "Technician"]:
         with tab_parts:
             st.markdown("### 📦 Supply Chain & Inventory")
             if u_role == "Technician":
@@ -439,7 +429,6 @@ else:
                         st.rerun()
                 my_parts = [p for p in st.session_state.parts_requests if p['Technician'] == u_name and p['plant'] == u_plant]
                 if my_parts: st.dataframe(pd.DataFrame(my_parts)[['Part', 'SAP_No', 'Status']], use_container_width=True)
-
             elif u_role == "Manager":
                 my_parts = get_filtered_data(st.session_state.parts_requests, u_plant, u_role)
                 if my_parts:
@@ -451,10 +440,6 @@ else:
                             if r["ID"] == sel_id and r["plant"] == u_plant: r["Status"] = action
                         st.rerun()
 
-    # ------------------------------------------
-    # AI BRAIN & REELS
-    # ------------------------------------------
-    if u_role in ["Manager", "Technician"]:
         with tab_brain:
             st.markdown("### 🧠 AI Knowledge Base")
             my_brain = get_filtered_data(st.session_state.plant_brain, u_plant, u_role)
