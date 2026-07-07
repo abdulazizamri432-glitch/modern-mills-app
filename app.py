@@ -7,11 +7,11 @@ import json
 import os
 from datetime import datetime
 
-# --- إعدادات الصفحة ---
+# --- SYSTEM CONFIG ---
 st.set_page_config(page_title="MMC Smart Plant ERP", page_icon="⚡", layout="wide")
 
 # ==========================================
-# ⚠️ إعدادات التليجرام
+# ⚠️ TELEGRAM API CONFIGURATION
 # ==========================================
 TELEGRAM_BOT_TOKEN = "8912670603:AAEr-hufquf8PIxnv-aKv0fz-9WgZa0oRks"
 TELEGRAM_CHATS = {
@@ -22,29 +22,36 @@ TELEGRAM_CHATS = {
 PLANT_PASSWORDS = {"Al-Jumum": "Jumum123", "Al-Jouf": "Jouf123", "Khamis Mushait": "Khamis123"}
 HQ_PASSWORD = "Admin123"
 
-# --- دالة الإشعارات مع نظام التأكيد ---
+# --- SMART ENGLISH NOTIFICATION ENGINE ---
 def send_smart_notification(title, message, category, plant, target_dept="All"):
     chat_id = TELEGRAM_CHATS.get(plant)
     if not chat_id: 
-        st.toast("⚠️ لم يتم العثور على جروب لهذا الفرع", icon="⚠️")
+        st.toast("⚠️ No Telegram Group found for this plant.", icon="⚠️")
         return 
     
-    icons = {'CRITICAL': '🚨', 'INFO': 'ℹ️', 'TASK': '🛠️', 'REWARD': '🏆'}
-    txt = f"{icons.get(category, '🔔')} <b>{title}</b>\n\n{message}\n\n🏢 القسم: {target_dept}"
+    icons = {'CRITICAL': '🚨 CRITICAL ALERT', 'INFO': 'ℹ️ SYSTEM NOTIFICATION', 'TASK': '🛠️ DISPATCH ORDER', 'REWARD': '🏆 ACHIEVEMENT UNLOCKED'}
+    
+    # تنسيق الرسالة الإنجليزي الفخم
+    txt = f"<b>{icons.get(category, '🔔')}</b>\n\n"
+    txt += f"<b>📌 Title:</b> {title}\n"
+    txt += f"<b>📝 Details:</b> {message}\n"
+    txt += f"<b>🏢 Dept:</b> {target_dept}\n"
+    txt += f"<i>🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+    
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": txt, "parse_mode": "HTML"}
     
     try: 
         response = requests.post(url, json=payload)
         if response.status_code == 200:
-            st.toast(f"📩 تم الإرسال لفرع {plant} بنجاح!", icon="✅")
+            st.toast(f"📩 Telegram Alert sent to {plant}!", icon="✅")
         else:
-            st.toast(f"❌ خطأ تليجرام: تأكد أن البوت أدمن", icon="❌")
+            st.toast(f"❌ Telegram Error: Make sure the bot is Admin.", icon="❌")
     except Exception: 
-        st.toast("🔌 لا يوجد اتصال إنترنت", icon="🔌")
+        st.toast("🔌 Offline: Could not send alert.", icon="🔌")
 
 # ==========================================
-# 💾 قاعدة البيانات الدائمة (JSON)
+# 💾 PERSISTENT DATABASE (JSON)
 # ==========================================
 DB_FILE = "mmc_database.json"
 
@@ -52,7 +59,7 @@ def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
             return json.load(f)
-    return {"users": {}, "wro": [], "parts": [], "rolls": [], "maint": [], "log": [], "bounties": [], "fazaas": []}
+    return {"users": {}, "wro": [], "parts": [], "rolls": [], "maint": [], "log": [], "bounties": [], "fazaas": [], "reels": [], "brain": []}
 
 def save_db():
     with open(DB_FILE, "w") as f:
@@ -69,7 +76,7 @@ def calculate_lifespan(install_date_str):
     return f"{(datetime.now() - install_date).days} Days"
 
 # ==========================================
-# 🎨 التصميم
+# 🎨 CYBERPUNK UI DESIGN
 # ==========================================
 st.markdown("""
 <style>
@@ -82,7 +89,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🔐 نظام التسجيل والدخول
+# 🔐 AUTHENTICATION SYSTEM
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("<div class='neon-text'>⚡ MMC Smart Plant ERP</div>", unsafe_allow_html=True)
@@ -145,17 +152,21 @@ if not st.session_state.logged_in:
 else:
     u = st.session_state.user_info
     
-    # القائمة الجانبية
+    # --- Sidebar ---
     st.sidebar.markdown(f"## {u['plant']} Node" if u['role'] != 'Director (HQ)' else "## 🌐 Global HQ")
     st.sidebar.write(f"**👤 {u['name']}** ({u['dept']})")
+    
     if u['role'] == "Technician":
         st.sidebar.write(f"⭐ Points: **{u['points']}**")
+        progress_val = int((u['points'] % 300) / 3) # Visual progress to next rank
+        st.sidebar.progress(progress_val if progress_val <= 100 else 100, text="Next Rank Progress")
+        
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout 🚪"):
         st.session_state.logged_in = False
         st.rerun()
 
-    # عبارة كل يوم (Daily Quote)
+    # --- Header & Daily Quote ---
     st.markdown(f"<h1 style='color:white;'>Welcome, {u['name']} 👋</h1>", unsafe_allow_html=True)
     daily_quotes = [
         "💡 Insight: Reliability is the byproduct of discipline.",
@@ -164,47 +175,47 @@ else:
     ]
     st.markdown(f"<div style='border-left: 4px solid #00f2fe; padding-left: 15px; color: #8b949e;'>{daily_quotes[datetime.now().day % len(daily_quotes)]}</div><br>", unsafe_allow_html=True)
 
-    # التبويبات حسب الصلاحيات
+    # --- Role Based Tabs ---
     if u['role'] == "Director (HQ)":
-        tabs = st.tabs(["🔮 AI Twin", "🌐 Global KPIs", "🚨 Radar", "⚙️ Rolls", "📦 SAP", "📥 Export"])
-        t_ai, t_dash, t_radar, t_rolls, t_parts, t_export = tabs
+        tabs = st.tabs(["🌐 KPIs", "🚨 Radar", "⚙️ Rolls", "📦 SAP", "🤖 Plant-GPT", "📥 Export"])
+        t_dash, t_radar, t_rolls, t_parts, t_gpt, t_export = tabs
     elif u['role'] == "Manager":
-        tabs = st.tabs(["🔮 AI Twin", "📊 Dash", "🤖 Plant-GPT", "🛠️ Dispatch", "⚙️ Rolls", "📅 Maint", "📦 SAP", "📥 Export"])
-        t_ai, t_dash, t_gpt, t_action, t_rolls, t_maint, t_parts, t_export = tabs
+        tabs = st.tabs(["🔮 AI Twin", "📊 Dash", "🤖 Plant-GPT", "🛠️ Dispatch", "📝 Log", "⚙️ Rolls", "📅 Maint", "📦 SAP", "🎬 Reels", "📥 Export"])
+        t_ai, t_dash, t_gpt, t_action, t_log, t_rolls, t_maint, t_parts, t_reels, t_export = tabs
     else:
-        tabs = st.tabs(["🎯 Tasks Hub", "🤖 Plant-GPT", "📝 Log", "⚙️ Rolls", "📅 Maint", "📦 Parts"])
-        t_action, t_gpt, t_log, t_rolls, t_maint, t_parts = tabs
+        tabs = st.tabs(["🎯 Tasks", "🤖 Plant-GPT", "📝 Log", "⚙️ Rolls", "📅 Maint", "📦 Parts", "🎬 Reels"])
+        t_action, t_gpt, t_log, t_rolls, t_maint, t_parts, t_reels = tabs
 
     # ==========================================
-    # 🔮 AI DIGITAL TWIN & AUTOPILOT
+    # 🔮 AI DIGITAL TWIN & AUTOPILOT (Managers)
     # ==========================================
-    if u['role'] in ["Manager", "Director (HQ)"]:
+    if u['role'] == "Manager":
         with t_ai:
             st.markdown("### 🔮 Predictive AI Digital Twin")
             st.markdown("<div class='ai-alert'><b>🚨 CRITICAL PREDICTION:</b> Mill C - Main Shaft<br>Failure Probability: <b>98%</b> within 12 Hours.<br><i>Target Department: Mechanical</i></div>", unsafe_allow_html=True)
             if st.button("⚡ ACTIVATE AUTOPILOT", type="primary"):
-                st.session_state.db['parts'].append({"ID": random.randint(100, 999), "plant": u['plant'] if u['role'] == 'Manager' else 'Al-Jumum', "Technician": "AI System", "Part": "Main Shaft Bearing", "Status": "SAP PO Triggered 🔄"})
-                st.session_state.db['wro'].append({"id": random.randint(1000, 9999), "plant": u['plant'] if u['role'] == 'Manager' else 'Al-Jumum', "target_dept": "Mechanical", "machine": "Mill C", "issue": "PREDICTIVE: Replace Bearing"})
+                st.session_state.db['parts'].append({"ID": random.randint(100, 999), "plant": u['plant'], "Technician": "AI System", "Part": "Main Shaft Bearing", "Status": "SAP PO Triggered 🔄"})
+                st.session_state.db['wro'].append({"id": random.randint(1000, 9999), "plant": u['plant'], "target_dept": "Mechanical", "machine": "Mill C", "issue": "PREDICTIVE: Replace Bearing", "status": "Pending"})
                 save_db()
-                send_smart_notification("🤖 AI AUTOPILOT", "Mill C Predictive Fix Initiated", "CRITICAL", u['plant'] if u['role'] == 'Manager' else 'Al-Jumum', "Mechanical")
+                send_smart_notification("AI AUTOPILOT INITIATED", "Mill C Predictive Fix - SAP PO created and WRO dispatched.", "CRITICAL", u['plant'], "Mechanical")
                 st.success("Autopilot Executed successfully!")
 
     # ==========================================
-    # 🤖 PLANT-GPT (AI المستودع/الفرع)
+    # 🤖 PLANT-GPT (AI Warehouse & Helper)
     # ==========================================
-    if u['role'] in ["Manager", "Technician"]:
+    if u['role'] in ["Manager", "Technician", "Director (HQ)"]:
         with t_gpt:
             st.markdown("### 🤖 Plant-GPT (AI Assistant)")
             for chat in u['chat']:
                 st.markdown(f"**🧑‍🔧 You:** {chat['user']}")
                 st.markdown(f"<div class='chat-bubble'>🤖 <b>Plant-GPT:</b> {chat['ai']}</div>", unsafe_allow_html=True)
-            user_q = st.text_input("Type your question here (e.g., sap stock, fix pump):")
+            user_q = st.text_input("Ask about SAP stock, manuals, or previous fixes:")
             if st.button("Ask Plant-GPT ✨", type="primary") and user_q:
-                with st.spinner("Searching..."):
-                    time.sleep(1)
-                    if "pump" in user_q.lower(): ai_resp = "Records show Pump B was fixed 3 months ago by replacing the Mechanical Seal."
-                    elif "sap" in user_q.lower() or "stock" in user_q.lower(): ai_resp = "S/4HANA Check: We have 15 Thermal Pastes and 2 Bearings."
-                    else: ai_resp = "Apply LOTO first, then refer to the standard maintenance manual."
+                with st.spinner("🤖 AI is searching Plant Brain & SAP Database..."):
+                    time.sleep(1.5)
+                    if "pump" in user_q.lower(): ai_resp = "Based on records, Pump B was fixed 3 months ago by replacing the Mechanical Seal (SAP #104558)."
+                    elif "sap" in user_q.lower() or "stock" in user_q.lower(): ai_resp = "SAP Check: We currently have 15 Thermal Pastes and 2 Bearings (Low Stock Warning)."
+                    else: ai_resp = "Standard Protocol: Always apply LOTO before proceeding. Refer to Section 4 of the Maintenance Manual."
                     st.session_state.db['users'][u['id']]['chat'].append({"user": user_q, "ai": ai_resp})
                     save_db()
                     st.rerun()
@@ -248,10 +259,10 @@ else:
     # ==========================================
     if u['role'] in ["Manager", "Director (HQ)"]:
         with t_export:
-            st.markdown("### 📥 Export Data to Excel (CSV)")
+            st.markdown("### 📥 Smart Reporting & Export")
             df_wro = pd.DataFrame(st.session_state.db['wro'])
             if not df_wro.empty:
-                st.download_button("📊 Download WRO Tasks", data=df_wro.to_csv(index=False).encode('utf-8'), file_name="WRO_Report.csv", mime='text/csv')
+                st.download_button("📊 Download WRO Tasks (CSV)", data=df_wro.to_csv(index=False).encode('utf-8'), file_name="WRO_Report.csv", mime='text/csv')
 
     # ==========================================
     # 🎯 ACTION HUB & DISPATCH
@@ -268,25 +279,25 @@ else:
                     if st.button("📢 DISPATCH WRO", type="primary"):
                         st.session_state.db['wro'].append({"id": random.randint(1000, 9999), "plant": u['plant'], "target_dept": wro_target_dept, "machine": wro_mac, "issue": wro_desc})
                         save_db()
-                        send_smart_notification(f"عطل جديد!", f"الموقع: {wro_mac}\nالمشكلة: {wro_desc}", "CRITICAL", u['plant'], wro_target_dept)
+                        send_smart_notification(f"NEW DISPATCH: {wro_mac}", f"Issue: {wro_desc}", "CRITICAL", u['plant'], wro_target_dept)
                 with col2:
                     bnty_desc = st.text_input("📌 Bounty Objective:")
                     bnty_pts = st.slider("⭐ Reward:", 10, 100, 30, step=10)
                     if st.button("💸 POST BOUNTY", use_container_width=True):
                         st.session_state.db['bounties'].append({"id": random.randint(1000,9999), "plant": u['plant'], "desc": bnty_desc, "points": bnty_pts})
                         save_db()
-                        send_smart_notification("مكافأة جديدة!", f"المهمة: {bnty_desc} | الجائزة: {bnty_pts}", "REWARD", u['plant'])
+                        send_smart_notification("NEW BOUNTY!", f"Task: {bnty_desc} | Reward: {bnty_pts} PTS", "REWARD", u['plant'])
             else:
                 st.markdown("### 🎯 Live Grid")
                 
                 # Faza'a
                 with st.expander("🤝 Faza'a (Request Backup)"):
-                    fz_loc = st.text_input("📍 Your Location:", key="fz_loc")
-                    fz_need = st.text_input("🙋‍♂️ What do you need?", key="fz_need")
+                    fz_loc = st.text_input("📍 Your Location:")
+                    fz_need = st.text_input("🙋‍♂️ What do you need?")
                     if st.button("📢 Call for Faza'a", type="primary") and fz_loc:
                         st.session_state.db['fazaas'].append({"id": random.randint(10,99), "plant": u['plant'], "req": u['name'], "loc": fz_loc, "need": fz_need})
                         save_db()
-                        send_smart_notification("فزعة!", f"{u['name']} يطلب المساعدة في {fz_loc}", "INFO", u['plant'])
+                        send_smart_notification("FAZA'A REQUESTED!", f"{u['name']} needs help at {fz_loc}.\nReq: {fz_need}", "INFO", u['plant'])
                 
                 for fz in [f for f in st.session_state.db['fazaas'] if f['plant'] == u['plant'] and f['req'] != u['name']]:
                     st.warning(f"**{fz['req']}** at **{fz['loc']}** needs: {fz['need']}")
@@ -294,7 +305,7 @@ else:
                         st.session_state.db['users'][u['id']]['points'] += 15
                         st.session_state.db['fazaas'].remove(fz)
                         save_db()
-                        send_smart_notification("تم قبول الفزعة", f"{u['name']} في الطريق لمساعدة {fz['req']}", "INFO", u['plant'])
+                        send_smart_notification("FAZA'A ACCEPTED", f"{u['name']} is en route to assist {fz['req']}", "INFO", u['plant'])
                         st.rerun()
 
                 st.markdown(f"#### 🚨 Active Anomalies (For {u['dept']})")
@@ -304,7 +315,7 @@ else:
                     if st.button("⚡ INTERCEPT", key=f"wro_{wro['id']}"):
                         st.session_state.db['wro'].remove(wro)
                         save_db()
-                        send_smart_notification("مهمة مستلمة", f"{u['name']} استلم مهمة {wro['machine']}", "INFO", u['plant'], u['dept'])
+                        send_smart_notification("WRO INTERCEPTED", f"{u['name']} has claimed the task at {wro['machine']}", "INFO", u['plant'], u['dept'])
                         st.rerun()
                 
                 st.markdown("#### 💰 Bounty Board")
@@ -314,54 +325,35 @@ else:
                         st.session_state.db['users'][u['id']]['points'] += b['points']
                         st.session_state.db['bounties'].remove(b)
                         save_db()
-                        send_smart_notification("مكافأة مكتسبة", f"{u['name']} ربح {b['points']} نقطة", "REWARD", u['plant'])
+                        send_smart_notification("BOUNTY CLAIMED", f"{u['name']} earned {b['points']} points!", "REWARD", u['plant'])
                         st.rerun()
 
     # ==========================================
-    # 📝 TASK LOGGING (للفني)
+    # 📝 TASK LOGGING & AI VISION (للمدير والفني)
     # ==========================================
-    if u['role'] == "Technician":
+    if u['role'] in ["Manager", "Technician"]:
         with t_log:
-            st.markdown("### 📝 Log Execution")
+            st.markdown("### 📝 Log Execution & Proof")
             task_type = st.radio("Type", ["WRO", "PRO"], horizontal=True)
             mac = st.text_input("📍 Equipment:")
             desc = st.text_area("📝 Details:")
-            if st.button("✅ COMMIT TO LOG (+50 PTS)"):
-                if mac and desc:
+            
+            # --- الدلع هنا (رفع الصورة والذكاء الاصطناعي) ---
+            proof = st.file_uploader("📸 Upload LOTO / Execution Proof (Required)", type=['jpg', 'png'])
+            
+            if st.button("✅ COMMIT TO LOG (+50 PTS)", type="primary"):
+                if mac and desc and proof:
+                    with st.spinner("🤖 AI Vision is verifying LOTO Compliance and Work..."):
+                        time.sleep(2) # حركة انتظار توحي بالتحليل
+                    
                     st.session_state.db['users'][u['id']]['points'] += 50
                     st.session_state.db['log'].append({"plant": u['plant'], "log": f"[{task_type}] {mac}", "user": u['name']})
+                    st.session_state.db['brain'].append({"plant": u['plant'], "machine": mac, "fix": desc, "tech": u['name']})
                     save_db()
-                    send_smart_notification("مهمة مكتملة", f"المهندس {u['name']} أنهى صيانة {mac}", "REWARD", u['plant'], u['dept'])
-                    st.rerun()
-
-    # ==========================================
-    # 📅 MAINTENANCE DAY
-    # ==========================================
-    if u['role'] in ["Manager", "Technician"]:
-        with t_maint:
-            st.markdown("### 📅 Planned Maintenance Outage")
-            if u['role'] == "Manager":
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    tech_id_assign = st.text_input("💳 Tech ID:")
-                with col_m2:
-                    maint_task_desc = st.text_area("🛠️ Work Order Scope:")
-                if st.button("📤 ALLOCATE", type="primary") and tech_id_assign:
-                    st.session_state.db['maint'].append({"id": random.randint(1000, 9999), "plant": u['plant'], "tech_id": tech_id_assign, "desc": maint_task_desc, "status": "Pending"})
-                    save_db()
-                    send_smart_notification("صيانة مبرمجة", f"تم تعيين مهمة جديدة للموظف: {tech_id_assign}", "TASK", u['plant'])
-                    st.rerun()
-                st.dataframe(pd.DataFrame([m for m in st.session_state.db['maint'] if m['plant'] == u['plant']]))
-            else:
-                my_tasks = [t for t in st.session_state.db['maint'] if t['tech_id'] == u['id'] and t['status'] == 'Pending']
-                for task in my_tasks:
-                    st.markdown(f"**🛠️ Scope:** {task['desc']}")
-                    if st.button("✅ CLOSE WORK ORDER", key=f"btn_{task['id']}"):
-                        task['status'] = "Completed"
-                        st.session_state.db['users'][u['id']]['points'] += 80
-                        save_db()
-                        send_smart_notification("صيانة منجزة", f"{u['name']} أنهى أمر العمل", "REWARD", u['plant'])
-                        st.rerun()
+                    send_smart_notification("TASK COMPLETED & VERIFIED", f"Tech: {u['name']} finished {mac}.\nAI Vision: Approved ✅", "REWARD", u['plant'], u['dept'])
+                    st.success("AI Verified! Logged & Points Added!")
+                else:
+                    st.error("⚠️ All fields and Visual Evidence (Photo) are mandatory.")
 
     # ==========================================
     # ⚙️ ROLLS WORKSHOP
@@ -382,19 +374,48 @@ else:
                 ready = [r for r in st.session_state.db['rolls'] if r['plant'] == u['plant'] and r['status'] == '🟢 Ready']
                 if ready:
                     sel_roll = st.selectbox("Install Roll:", [r['serial'] for r in ready])
-                    tar_mac = st.text_input("📍 Machine Name:")
+                    tar_mac = st.text_input("📍 Machine Name:", key="rl_mac")
                     if st.button("⚙️ Confirm Install") and tar_mac:
                         for r in st.session_state.db['rolls']:
                             if r['serial'] == sel_roll:
                                 r['status'], r['machine'], r['install_date'] = "🔴 Installed", tar_mac, datetime.now().strftime("%Y-%m-%d")
                         save_db()
-                        send_smart_notification("تركيب رول", f"تم تركيب رول {sel_roll} في {tar_mac}", "INFO", u['plant'])
+                        send_smart_notification("ROLL INSTALLED", f"Roll {sel_roll} installed in {tar_mac}", "INFO", u['plant'])
                         st.rerun()
         
         active = [r for r in st.session_state.db['rolls'] if (r.get('plant') == u['plant'] or u['role'] == 'Director (HQ)') and r['status'] == '🔴 Installed']
         if active:
             for r in active: r['Age'] = calculate_lifespan(r['install_date'])
             st.dataframe(pd.DataFrame(active)[['plant', 'serial', 'type', 'machine', 'Age']], use_container_width=True)
+
+    # ==========================================
+    # 📅 MAINTENANCE DAY
+    # ==========================================
+    if u['role'] in ["Manager", "Technician"]:
+        with t_maint:
+            st.markdown("### 📅 Planned Maintenance Outage")
+            if u['role'] == "Manager":
+                col_m1, col_m2 = st.columns(2)
+                with col_m1:
+                    tech_id_assign = st.text_input("💳 Tech ID:")
+                with col_m2:
+                    maint_task_desc = st.text_area("🛠️ Work Order Scope:")
+                if st.button("📤 ALLOCATE", type="primary") and tech_id_assign:
+                    st.session_state.db['maint'].append({"id": random.randint(1000, 9999), "plant": u['plant'], "tech_id": tech_id_assign, "desc": maint_task_desc, "status": "Pending"})
+                    save_db()
+                    send_smart_notification("NEW MAINT DIRECTIVE", f"Assigned to: {tech_id_assign}", "TASK", u['plant'])
+                    st.rerun()
+                st.dataframe(pd.DataFrame([m for m in st.session_state.db['maint'] if m['plant'] == u['plant']]))
+            else:
+                my_tasks = [t for t in st.session_state.db['maint'] if t['tech_id'] == u['id'] and t['status'] == 'Pending']
+                for task in my_tasks:
+                    st.markdown(f"**🛠️ Scope:** {task['desc']}")
+                    if st.button("✅ CLOSE WORK ORDER", key=f"btn_{task['id']}"):
+                        task['status'] = "Completed"
+                        st.session_state.db['users'][u['id']]['points'] += 80
+                        save_db()
+                        send_smart_notification("MAINTENANCE COMPLETED", f"{u['name']} closed order.", "REWARD", u['plant'])
+                        st.rerun()
 
     # ==========================================
     # 📦 INVENTORY / SAP
@@ -407,7 +428,7 @@ else:
             if st.button("📤 Request Part") and part_desc:
                 st.session_state.db['parts'].append({"ID": len(st.session_state.db['parts'])+1, "plant": u['plant'], "Technician": u['name'], "Part": part_desc, "Machine": target_machine, "Status": "Pending"})
                 save_db()
-                send_smart_notification("طلب قطعة غيار", f"{u['name']} طلب قطعة: {part_desc}", "TASK", u['plant'])
+                send_smart_notification("PARTS REQUESTED", f"{u['name']} requested: {part_desc}", "TASK", u['plant'])
                 st.rerun()
             my_parts = [p for p in st.session_state.db['parts'] if p['Technician'] == u['name']]
             if my_parts: st.dataframe(pd.DataFrame(my_parts)[['Part', 'Machine', 'Status']])
@@ -422,5 +443,26 @@ else:
                         for r in st.session_state.db['parts']:
                             if r["ID"] == sel_id: r["Status"] = action
                         save_db()
-                        send_smart_notification("تحديث طلب SAP", f"الطلب رقم {sel_id} صار: {action}", "INFO", u['plant'])
+                        send_smart_notification("SAP STATUS UPDATE", f"Req ID {sel_id} is now {action}", "INFO", u['plant'])
                         st.rerun()
+
+    # ==========================================
+    # 🎬 REELS & TRAINING (للمدير والفني)
+    # ==========================================
+    if u['role'] in ["Manager", "Technician"]:
+        with t_reels:
+            st.markdown("### 🎬 Operation Tutorials & Reels")
+            with st.expander("📤 Upload Intel (+100 PTS)"):
+                reel_title = st.text_input("📌 Intel Subject:")
+                st.file_uploader("Upload Video File (MP4)", type=["mp4"])
+                if st.button("🚀 UPLOAD INTEL", type="primary") and reel_title:
+                    # نحفظ فقط البيانات النصية في القاعدة عشان ما نثقل السيرفر بالفيديوهات
+                    st.session_state.db['reels'].append({"plant": u['plant'], "title": reel_title, "author": u['name'], "date": datetime.now().strftime("%Y-%m-%d")})
+                    st.session_state.db['users'][u['id']]['points'] += 100
+                    save_db()
+                    send_smart_notification("NEW INTEL UPLOADED", f"Tutorial: {reel_title} by {u['name']}", "REWARD", u['plant'])
+                    st.success("Intel Uploaded to Secure Vault!")
+            
+            my_reels = [r for r in st.session_state.db['reels'] if r['plant'] == u['plant']]
+            for reel in reversed(my_reels):
+                st.info(f"🎥 **{reel['title']}** (Uploaded by {reel['author']} on {reel['date']})")
