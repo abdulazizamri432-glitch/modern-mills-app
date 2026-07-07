@@ -31,7 +31,6 @@ def send_smart_notification(title, message, category, plant, target_dept="All"):
     
     icons = {'CRITICAL': '🚨 CRITICAL ALERT', 'INFO': 'ℹ️ SYSTEM NOTIFICATION', 'TASK': '🛠️ DISPATCH ORDER', 'REWARD': '🏆 ACHIEVEMENT UNLOCKED'}
     
-    # تنسيق الرسالة الإنجليزي الفخم
     txt = f"<b>{icons.get(category, '🔔')}</b>\n\n"
     txt += f"<b>📌 Title:</b> {title}\n"
     txt += f"<b>📝 Details:</b> {message}\n"
@@ -51,7 +50,7 @@ def send_smart_notification(title, message, category, plant, target_dept="All"):
         st.toast("🔌 Offline: Could not send alert.", icon="🔌")
 
 # ==========================================
-# 💾 PERSISTENT DATABASE (JSON)
+# 💾 PERSISTENT DATABASE (WITH AUTO-HEAL)
 # ==========================================
 DB_FILE = "mmc_database.json"
 
@@ -59,14 +58,26 @@ def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
             return json.load(f)
-    return {"users": {}, "wro": [], "parts": [], "rolls": [], "maint": [], "log": [], "bounties": [], "fazaas": [], "reels": [], "brain": []}
+    return {}
 
 def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(st.session_state.db, f, indent=4)
 
 if 'db' not in st.session_state:
-    st.session_state.db = load_db()
+    loaded_db = load_db()
+    # 🛠️ نظام المعالجة الذاتية (Auto-Heal) لتحديث الملفات القديمة
+    defaults = {"users": {}, "wro": [], "parts": [], "rolls": [], "maint": [], "log": [], "bounties": [], "fazaas": [], "reels": [], "brain": []}
+    for k, v in defaults.items():
+        if k not in loaded_db:
+            loaded_db[k] = v
+    # تحديث المستخدمين القدامى (لإضافة ميزة الشات)
+    for uid, udata in loaded_db['users'].items():
+        if 'chat' not in udata: udata['chat'] = []
+        if 'points' not in udata: udata['points'] = 0
+        
+    st.session_state.db = loaded_db
+    save_db()
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
@@ -158,7 +169,7 @@ else:
     
     if u['role'] == "Technician":
         st.sidebar.write(f"⭐ Points: **{u['points']}**")
-        progress_val = int((u['points'] % 300) / 3) # Visual progress to next rank
+        progress_val = int((u['points'] % 300) / 3)
         st.sidebar.progress(progress_val if progress_val <= 100 else 100, text="Next Rank Progress")
         
     st.sidebar.markdown("---")
@@ -187,7 +198,7 @@ else:
         t_action, t_gpt, t_log, t_rolls, t_maint, t_parts, t_reels = tabs
 
     # ==========================================
-    # 🔮 AI DIGITAL TWIN & AUTOPILOT (Managers)
+    # 🔮 AI DIGITAL TWIN & AUTOPILOT
     # ==========================================
     if u['role'] == "Manager":
         with t_ai:
@@ -201,7 +212,7 @@ else:
                 st.success("Autopilot Executed successfully!")
 
     # ==========================================
-    # 🤖 PLANT-GPT (AI Warehouse & Helper)
+    # 🤖 PLANT-GPT 
     # ==========================================
     if u['role'] in ["Manager", "Technician", "Director (HQ)"]:
         with t_gpt:
@@ -290,7 +301,6 @@ else:
             else:
                 st.markdown("### 🎯 Live Grid")
                 
-                # Faza'a
                 with st.expander("🤝 Faza'a (Request Backup)"):
                     fz_loc = st.text_input("📍 Your Location:")
                     fz_need = st.text_input("🙋‍♂️ What do you need?")
@@ -329,7 +339,7 @@ else:
                         st.rerun()
 
     # ==========================================
-    # 📝 TASK LOGGING & AI VISION (للمدير والفني)
+    # 📝 TASK LOGGING & AI VISION 
     # ==========================================
     if u['role'] in ["Manager", "Technician"]:
         with t_log:
@@ -337,14 +347,12 @@ else:
             task_type = st.radio("Type", ["WRO", "PRO"], horizontal=True)
             mac = st.text_input("📍 Equipment:")
             desc = st.text_area("📝 Details:")
-            
-            # --- الدلع هنا (رفع الصورة والذكاء الاصطناعي) ---
             proof = st.file_uploader("📸 Upload LOTO / Execution Proof (Required)", type=['jpg', 'png'])
             
             if st.button("✅ COMMIT TO LOG (+50 PTS)", type="primary"):
                 if mac and desc and proof:
                     with st.spinner("🤖 AI Vision is verifying LOTO Compliance and Work..."):
-                        time.sleep(2) # حركة انتظار توحي بالتحليل
+                        time.sleep(2) 
                     
                     st.session_state.db['users'][u['id']]['points'] += 50
                     st.session_state.db['log'].append({"plant": u['plant'], "log": f"[{task_type}] {mac}", "user": u['name']})
@@ -447,22 +455,10 @@ else:
                         st.rerun()
 
     # ==========================================
-    # 🎬 REELS & TRAINING (للمدير والفني)
+    # 🎬 REELS & TRAINING 
     # ==========================================
     if u['role'] in ["Manager", "Technician"]:
         with t_reels:
             st.markdown("### 🎬 Operation Tutorials & Reels")
             with st.expander("📤 Upload Intel (+100 PTS)"):
                 reel_title = st.text_input("📌 Intel Subject:")
-                st.file_uploader("Upload Video File (MP4)", type=["mp4"])
-                if st.button("🚀 UPLOAD INTEL", type="primary") and reel_title:
-                    # نحفظ فقط البيانات النصية في القاعدة عشان ما نثقل السيرفر بالفيديوهات
-                    st.session_state.db['reels'].append({"plant": u['plant'], "title": reel_title, "author": u['name'], "date": datetime.now().strftime("%Y-%m-%d")})
-                    st.session_state.db['users'][u['id']]['points'] += 100
-                    save_db()
-                    send_smart_notification("NEW INTEL UPLOADED", f"Tutorial: {reel_title} by {u['name']}", "REWARD", u['plant'])
-                    st.success("Intel Uploaded to Secure Vault!")
-            
-            my_reels = [r for r in st.session_state.db['reels'] if r['plant'] == u['plant']]
-            for reel in reversed(my_reels):
-                st.info(f"🎥 **{reel['title']}** (Uploaded by {reel['author']} on {reel['date']})")
